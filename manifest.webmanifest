@@ -1,0 +1,14 @@
+{
+  "name": "Inventário de equipamento",
+  "short_name": "Inventário",
+  "lang": "pt-PT",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FBF7EE",
+  "theme_color": "#1E3A8A",
+  "icons": [
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

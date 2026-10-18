@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="pt-PT" data-modo="tlm">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de desbloqueio CUCo</title>
+<!-- Simulador para formação (CCP, Módulo 9). Funciona sem internet. Sem bibliotecas externas. Todos os dados são inventados. -->
+<style>
+:root{
+  --fundo:#FBF7EE; --texto:#1F2937; --azul:#1E3A8A; --azul-claro:#E8F0FB;
+  --erro:#9B1C1C; --atencao:#B45309; --borda:#D6D0C4; --branco:#FFFFFF;
+}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{margin:0;background:var(--fundo);color:var(--texto);font-family:Verdana,Arial,sans-serif;font-size:17px;line-height:1.5}
+header{padding:6px 16px;border-bottom:2px solid var(--borda);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+h1{font-size:18px;margin:0}
+.aviso-sim{font-size:13px;margin:0}
+.botoes-topo{display:flex;gap:8px;flex-wrap:wrap}
+.botoes-topo button{min-height:38px;padding:4px 14px;font-size:15px}
+button{font-family:inherit;font-size:17px;min-height:46px;padding:8px 18px;border-radius:8px;border:2px solid var(--azul);background:var(--branco);color:var(--azul);cursor:pointer;font-weight:bold}
+button.principal{background:var(--azul);color:var(--branco)}
+a.botao{display:inline-flex;align-items:center;justify-content:center;font-family:inherit;font-size:17px;min-height:46px;padding:8px 18px;border-radius:8px;border:2px solid var(--azul);background:var(--branco);color:var(--azul);font-weight:bold;text-decoration:none;cursor:pointer}
+a.botao.principal{background:var(--azul);color:var(--branco)}
+.botoes-topo a.botao{min-height:38px;padding:4px 14px;font-size:15px}
+button:disabled{opacity:.45;cursor:not-allowed}
+main{max-width:1250px;margin:0 auto;padding:8px 16px 24px}
+.instrucao{background:var(--azul-claro);border-left:8px solid var(--azul);padding:8px 14px;border-radius:6px;margin-bottom:6px;display:flex;align-items:center;gap:14px}
+.instrucao .txt{flex:1}
+#btnContinuar{min-height:40px;padding:4px 18px;margin:0 !important;white-space:nowrap}
+.instrucao .passo{font-size:13px;margin:0}
+.instrucao p.texto{font-weight:bold;font-size:18px;margin:2px 0 0;line-height:1.35}
+#mensagem{min-height:24px;margin:0 0 4px;font-size:16px;font-weight:bold}
+#mensagem.erro{color:var(--erro)}
+#mensagem.certo{color:var(--azul)}
+#escala{display:flex;justify-content:center}
+.palco{display:grid;grid-template-columns:760px 340px;gap:40px;width:1140px;align-items:start}
+.legenda{font-weight:bold;margin:0 0 6px;text-align:center}
+
+/* Computador */
+.pc{width:760px}
+.portatil{background:#2B2B2B;border-radius:16px 16px 4px 4px;padding:20px 20px 26px;box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.ecra{position:relative;aspect-ratio:16/10;border-radius:4px;overflow:hidden;background:#000}
+.base{height:16px;background:#BDB7AC;border-radius:0 0 14px 14px;margin:0 -24px}
+.vista{position:absolute;inset:0;display:none}
+.vista.ativa{display:block}
+#pcDesligado{display:none;align-items:center;justify-content:center;background:#000}
+#pcDesligado.ativa{display:flex}
+.inicio-box{display:flex;flex-direction:column;gap:12px;align-items:stretch;width:60%;max-width:360px}
+.inicio-box label{color:#FFF;font-weight:bold;font-size:18px}
+.inicio-box input{font-size:20px;padding:10px 14px;border-radius:8px;border:3px solid #FFD54A;min-height:48px}
+#btnEnviar{background:var(--ambar);border-color:var(--ambar);color:#3B2500}
+#pcAzul{background:linear-gradient(160deg,#2531B8,#3B3FE0 60%,#4A55E8);color:#FFFFFF;font-family:Consolas,"Courier New",monospace;font-weight:bold;font-size:18px;line-height:1.5;padding:3% 3%;text-shadow:0 0 1px #000}
+#pcAzul .linha{white-space:pre;display:block;border-radius:3px}
+#pcAzul .destaque{outline:3px solid #FFD54A;outline-offset:2px}
+#pcCodigo{background:transparent;border:none;border-bottom:2px solid #E9ECFF;color:#FFF;font:inherit;width:14ch;outline:none;padding:0 2px}
+#pcCodigo:disabled{border-bottom-color:transparent}
+#pcBaixo{background:#262626}
+#lupa{position:absolute;left:4%;right:4%;bottom:5%;background:#FFFFFF;color:#111;border:4px solid #FFD54A;border-radius:8px;padding:10px 16px;font-family:Consolas,"Courier New",monospace;font-weight:bold;font-size:30px;line-height:1.35;display:none;white-space:pre}
+#lupa small{display:block;font-family:Verdana,Arial,sans-serif;font-size:15px;font-weight:normal;color:#333;white-space:normal}
+.etiqueta{position:absolute;background:#ECECEC;border:3px solid transparent;border-radius:4px;cursor:pointer;color:#333;font-family:Arial,sans-serif;padding:6px}
+.etiqueta:hover{border-color:#FFD54A}
+.codbarras{height:28px;background:repeating-linear-gradient(90deg,#111 0 2px,#ECECEC 2px 4px,#111 4px 5px,#ECECEC 5px 8px)}
+#etqReg{left:8%;top:10%;width:34%;font-size:11px;line-height:1.3}
+#etqSN{left:8%;top:42%;width:28%;text-align:center;font-size:12px}
+#etqInv{left:56%;top:10%;width:34%;text-align:center;font-size:12px}
+#zoomSN{position:absolute;left:40%;top:44%;width:56%;background:#FFF;color:#111;border:3px solid #FFD54A;border-radius:6px;padding:10px;display:none;font-family:"Courier New",monospace;font-size:22px;text-align:center;font-weight:bold}
+#pcArranque{background:#0B1530;color:#FFF;display:none;align-items:center;justify-content:center;flex-direction:column;gap:18px;font-size:20px}
+#pcArranque.ativa{display:flex}
+.roda{width:44px;height:44px;border:5px solid rgba(255,255,255,.25);border-top-color:#FFF;border-radius:50%;animation:gira 1s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+
+/* Windows (Parte 2) */
+#pcWin{background:linear-gradient(160deg,#3D5A80,#7FA1C9);font-family:"Segoe UI",Arial,sans-serif;color:#1F2937}
+.w-tarefas{position:absolute;left:0;right:0;bottom:0;height:46px;background:#E9EDF3;display:flex;align-items:center;justify-content:center;gap:14px;border-top:1px solid #C9D0DA;font-size:15px}
+.w-ini{display:grid;grid-template-columns:11px 11px;gap:2px}
+.w-ini i{width:11px;height:11px;background:#1A73E8;display:block}
+.w-proc{background:#FFF;border-radius:16px;padding:4px 16px;color:#666;font-size:14px}
+button.w-icone{min-height:0;padding:4px;border:3px solid transparent;background:transparent;border-radius:8px;display:flex}
+.chrome{width:28px;height:28px;border-radius:50%;background:conic-gradient(#DB4437 0 120deg,#F4B400 0 240deg,#0F9D58 0);display:grid;place-items:center}
+.chrome::after{content:"";width:11px;height:11px;border-radius:50%;background:#1A73E8;border:2px solid #FFF}
+.w-hora{position:absolute;right:12px;font-size:13px;text-align:right;line-height:1.2}
+.janela{position:absolute;left:2.5%;right:2.5%;top:3%;bottom:58px;background:#FFF;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.35);display:flex;flex-direction:column;overflow:hidden}
+.w-tabs{background:#DDE3EA;display:flex;justify-content:space-between;align-items:center;padding:5px 10px;font-size:14px}
+.w-tab{background:#FFF;border-radius:6px 6px 0 0;padding:3px 14px;font-weight:bold}
+.w-ctrl{letter-spacing:8px;color:#444}
+.w-barra{display:flex;align-items:center;gap:10px;padding:5px 10px;border-bottom:1px solid #E2E2E2;font-size:15px}
+.w-end{flex:1;background:#F1F3F4;border-radius:14px;padding:3px 12px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-ico{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:bold;font-size:18px;border:3px solid transparent}
+.w-conteudo{flex:1;overflow:auto;padding:14px 22px;position:relative}
+.g-logo{font-size:44px;font-weight:bold;text-align:center;margin:18px 0 14px;letter-spacing:-1px}
+.g-logo span:nth-child(1),.g-logo span:nth-child(4){color:#4285F4}.g-logo span:nth-child(2),.g-logo span:nth-child(6){color:#DB4437}.g-logo span:nth-child(3){color:#F4B400}.g-logo span:nth-child(5){color:#0F9D58}
+.g-pesq{display:flex;gap:8px;max-width:520px;margin:0 auto}
+.g-pesq input{flex:1;font-size:17px;padding:8px 16px;border:2px solid #CCC;border-radius:24px;min-height:44px}
+.g-pesq button{min-height:44px;font-size:15px;border-radius:24px}
+.w-res{padding:8px 6px;border-radius:6px;cursor:pointer;border:3px solid transparent;margin-bottom:4px}
+.w-res:hover{background:#F4F6FB}
+.w-res .url{font-size:13px;color:#555}
+.w-res .tit{font-size:20px;color:#1A0DAB;font-weight:bold}
+.w-res .desc{font-size:14px;color:#444}
+.u-topo{font-size:18px;font-weight:bold;background:#F2F2F2;padding:6px 12px;margin:-6px -10px 10px}
+.u-azul,.u-escuro{text-align:center;padding:12px 16px;color:#FFF;border-radius:2px;margin-bottom:8px}
+.u-azul{background:linear-gradient(90deg,#1C6FD6,#2BA6E0)}
+.u-escuro{background:#2E3247}
+.u-azul h3,.u-escuro h3{margin:2px 0 6px;font-size:22px}
+.u-azul p{margin:4px 0;font-size:15px}
+button.u-btn{min-height:40px;padding:4px 18px;font-size:16px;background:#F4F4F4;color:#222;border:3px solid transparent;border-radius:4px}
+.w-pop{position:absolute;right:10px;top:78px;width:330px;background:#FFF;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.35);padding:10px 14px;font-size:15px;z-index:3}
+.w-pop-linha{display:flex;align-items:center;gap:10px;margin-top:8px}
+.w-pop-linha small{color:#555}
+.ico-ct{width:30px;height:30px;border-radius:6px;background:#E8A31B;color:#3B1D00;font-weight:bold;display:grid;place-items:center;flex:0 0 30px;font-size:16px}
+button.w-mini{min-height:0;width:40px;height:40px;padding:0;border:3px solid transparent;background:#EEF1F5;border-radius:6px;display:grid;place-items:center;margin-left:auto}
+button.w-mini + button.w-mini{margin-left:0}
+.e-caminho{padding:6px 12px;font-size:15px;border-bottom:1px solid #E2E2E2}
+.e-lista{width:100%;border-collapse:collapse;font-size:15px}
+.e-lista th{text-align:left;font-weight:normal;color:#555;padding:6px 12px;border-bottom:1px solid #E2E2E2}
+.e-lista td{padding:7px 12px;cursor:pointer;white-space:nowrap}
+.e-lista tr.e-linha:hover td{background:#EEF4FC}
+.e-lista tr.sel td{background:#CCE0FA}
+.e-nome{display:flex;align-items:center;gap:8px}
+.e-nome .ico-ct{width:22px;height:22px;flex-basis:22px;font-size:12px;border-radius:4px}
+.ico-doc{width:18px;height:22px;background:#FFF;border:2px solid #8A97A8;border-radius:2px;display:inline-block}
+#wUac{position:absolute;inset:0;background:rgba(10,20,40,.55);display:grid;place-items:center;z-index:5}
+.uac-caixa{width:74%;background:#FFF;border-radius:8px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.uac-tit{font-size:14px;padding:10px 18px 0;color:#444}
+.uac-perg{font-size:21px;padding:4px 18px 12px;background:#FFF;border-bottom:1px solid #EEE}
+.uac-app{display:flex;align-items:center;gap:12px;font-size:20px;padding:12px 18px 4px}
+.uac-info{font-size:14px;padding:4px 18px 12px;color:#333}
+.uac-botoes{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 18px;background:#F3F3F3}
+.uac-botoes button{min-height:42px;font-size:17px;border-radius:4px;border:3px solid #BBB;background:#FFF;color:#222}
+.uac-botoes button.uac-nao{background:#0067C0;border-color:#0067C0;color:#FFF}
+.ct-jan{position:absolute;left:18%;right:18%;top:12%;background:#F3F3F3;border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,.45);overflow:hidden;z-index:4}
+.ct-log{background:#FFF;margin:10px 12px 8px;border:1px solid #CCC;height:120px;overflow:auto;font-size:14px;padding:8px 10px;white-space:pre-line}
+.ct-barra{height:22px;margin:0 12px 10px;background:#E1E1E1;border:1px solid #BBB}
+#ctProg{height:100%;width:0;background:#C62828;transition:width .3s}
+#ctProg.ok{background:#2E7D32}
+button.ct-btn{display:block;width:calc(100% - 24px);margin:0 12px 12px;min-height:40px;font-size:16px;font-weight:normal;background:#FDFDFD;color:#222;border:3px solid #CCC;border-radius:4px}
+#telPausa{position:absolute;inset:0;background:rgba(251,247,238,.93);display:none;align-items:center;justify-content:center;text-align:center;padding:24px;font-weight:bold;font-size:18px;color:#1F2937;z-index:5}
+#telPausa.ativa{display:flex}
+
+/* Celebração final */
+#festa{position:fixed;inset:0;background:rgba(31,41,55,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+#festa.ativa{display:flex}
+#confettis{position:fixed;inset:0;pointer-events:none;z-index:51}
+.festa-caixa{position:relative;z-index:52;background:var(--fundo);border:4px solid var(--azul);border-radius:16px;max-width:560px;width:100%;padding:24px 28px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.35);animation:salta .6s ease-out}
+@keyframes salta{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}
+.medalha{width:96px;height:96px;margin:0 auto 8px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#FFE58A,#F2B705 60%,#C98A00);border:5px solid #FFF;box-shadow:0 0 0 4px #F2B705;display:grid;place-items:center;font-size:48px;font-weight:bold;color:#7A4E00;animation:roda 1.2s ease-out}
+@keyframes roda{from{transform:rotate(-180deg) scale(.3)}to{transform:none}}
+.festa-caixa h2{font-size:32px;margin:6px 0 2px;color:var(--azul)}
+.festa-caixa .sub{font-size:20px;font-weight:bold;margin:0 0 14px}
+.festa-lista{text-align:left;display:inline-block;margin:0 0 12px;padding:0;list-style:none;font-size:17px}
+.festa-lista li{margin:4px 0}
+.festa-dados{background:var(--azul-claro);border-left:6px solid var(--azul);border-radius:6px;padding:10px 14px;text-align:left;font-size:16px;margin-bottom:12px}
+.festa-frase{font-size:16px;margin:0 0 16px}
+.festa-botoes{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){.festa-caixa,.medalha{animation:none}}
+
+/* Telemóvel */
+.tel{width:340px}
+.telemovel{background:#1A1A1A;border-radius:30px;padding:14px 12px 22px;box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.tel-ecra{position:relative;background:#FFF;border-radius:16px;overflow:hidden;height:470px;display:flex;flex-direction:column}
+.barra-estado{background:#000;color:#FFF;font-size:12px;padding:4px 12px;display:flex;justify-content:space-between}
+.barra-endereco{background:#F1F1F1;padding:8px 10px;font-size:13px;border-bottom:1px solid #DDD;display:flex;gap:6px;align-items:center}
+.barra-endereco span.end{background:#FFF;border-radius:14px;padding:4px 10px;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.tag-sim{background:var(--atencao);color:#FFF;font-size:11px;font-weight:bold;padding:2px 6px;border-radius:4px}
+.tel-conteudo{flex:1;overflow-y:auto;padding:14px;font-family:Arial,sans-serif;font-size:15px;line-height:1.45;color:#222}
+.tel-vista{display:none}
+.tel-vista.ativa{display:block}
+.pesquisa{display:flex;gap:6px;margin-top:40px}
+.pesquisa input{flex:1;min-width:0;font-size:16px;padding:10px 14px;border:2px solid #CCC;border-radius:24px;min-height:46px}
+.pesquisa button{border-radius:24px;padding:8px 14px;font-size:15px}
+.titulo-pesq{text-align:center;font-size:26px;font-weight:bold;color:#444;margin-top:30px}
+.resultado{border-bottom:1px solid #EEE;padding:10px 4px;cursor:pointer;border-radius:6px}
+.resultado:hover{background:#F4F6FB}
+.resultado .url{font-size:12px;color:#555}
+.resultado .tit{color:#1A0DAB;font-size:17px;font-weight:bold}
+.resultado .desc{font-size:13px;color:#444}
+.form-titulo{font-size:20px;font-weight:bold;background:#EEE;padding:8px 10px;border-radius:4px;margin:0 0 10px}
+.form-intro{background:#F5F5F5;padding:8px 10px;font-size:13px;margin-bottom:12px}
+.campo{margin-bottom:12px}
+.campo label{display:block;font-size:13px;margin-bottom:4px}
+.campo .linha-campo{display:flex;align-items:center;gap:8px}
+.campo input{flex:1;font-size:16px;padding:8px 10px;border:2px solid #CCC;border-radius:4px;min-height:44px;font-family:"Courier New",monospace}
+.campo input:disabled{background:#F4F4F4}
+.estado-campo{font-weight:bold;color:var(--azul);min-width:110px;font-size:13px}
+#btnMostrar{background:#1C9AD6;border-color:#1C9AD6;color:#FFF;font-size:15px}
+#caixaCodigo{display:none;background:#F2F2F2;padding:10px;margin-top:12px;border-radius:4px}
+#caixaCodigo .cod{font-family:"Courier New",monospace;font-size:24px;font-weight:bold;border:3px solid #1C9AD6;display:inline-block;padding:2px 10px;margin:4px 0;background:#FFF;letter-spacing:1px}
+.leitura{background:#222;color:#EEE;font-size:13px;padding:10px;margin-top:12px;border-radius:4px}
+
+/* Ajuda */
+.pisca{animation:pisca .6s ease-in-out 5;outline:4px solid #FFD54A !important;outline-offset:3px}
+@keyframes pisca{50%{outline-color:transparent}}
+
+/* Resumo final */
+#resumo{display:none;margin-top:24px;border:2px solid var(--borda);border-radius:8px;padding:12px 20px;background:var(--branco)}
+#resumo h2{font-size:20px;margin:6px 0}
+#resumo ol{margin:6px 0 10px;padding-left:24px}
+
+@media (max-width:600px){main,header{padding-left:12px;padding-right:12px}h1{font-size:18px}}
+@media (max-height:520px){header{padding:6px 16px}.aviso-sim{display:none}h1{font-size:17px}button{min-height:40px;padding:6px 12px;font-size:15px}.instrucao{padding:8px 14px}.instrucao p.texto{font-size:17px}#mensagem{min-height:22px;margin-bottom:4px}}
+.ativo{outline:4px solid #FFD54A !important;outline-offset:2px}
+.dica-rodar{display:none;font-size:15px;margin:0 0 8px}
+@media (orientation:portrait) and (max-width:700px){.dica-rodar{display:block}}
+
+/* ===== Estilo "Gabinete Digital" ===== */
+:root{--linha:#E5DFD3;--ambar:#E8A31B;--mesa1:#F4EFE4;--mesa2:#ECE4D5}
+header.topo{display:grid;grid-template-columns:auto minmax(220px,1fr) auto;gap:28px;align-items:center;padding:8px 20px 8px 26px;background:#FFF;border-bottom:1px solid var(--linha);position:relative}
+header.topo::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--azul)}
+.marca{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;border-radius:10px;background:var(--azul);display:grid;place-items:center;flex:none}
+.marca-nome{margin:0;font-size:13px;font-weight:bold;color:var(--azul)}
+.marca-nome span{font-weight:normal;color:#5B6472}
+header.topo h1{font-size:19px;margin:0;line-height:1.3}
+.progresso{max-width:520px;width:100%;justify-self:center}
+.prog-linha{display:flex;justify-content:space-between;font-size:13px;font-weight:bold;margin-bottom:4px}
+.prog-linha span:last-child{color:#5B6472}
+.prog-barras{display:flex;gap:10px}
+.prog-parte{display:flex;gap:3px}
+.p1{flex:10}.p2{flex:9}
+.prog-parte i{flex:1;height:9px;border-radius:5px;background:var(--linha);transition:background .3s}
+.prog-parte i.feito{background:var(--azul)}
+.prog-parte i.atual{background:var(--ambar)}
+.prog-legenda{display:flex;gap:10px;font-size:12px;color:#5B6472;margin-top:3px}
+.botoes-topo button,.botoes-topo a.botao{min-height:38px;padding:4px 14px;font-size:15px;border-radius:999px}
+
+main{padding:10px 20px 20px}
+.instrucao{background:#FFF;border:1px solid var(--linha);border-left:6px solid var(--azul);border-radius:12px;padding:8px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 6px rgba(31,41,55,.06)}
+.num{width:42px;height:42px;border-radius:50%;background:var(--azul);color:#FFF;font-weight:bold;font-size:20px;display:grid;place-items:center;flex:none}
+.instrucao .passo{font-size:13px;color:#5B6472;margin:0}
+.instrucao p.texto{font-size:18px;margin:1px 0 0}
+#mensagem{min-height:22px;margin:2px 0 0;font-size:15px}
+#btnContinuar{border-radius:999px}
+
+.palco{width:max-content;grid-template-columns:760px 340px;gap:44px;padding:14px 50px 26px;background:linear-gradient(180deg,var(--mesa1),var(--mesa2));border:1px solid #E2DACA;border-radius:20px}
+.legenda{display:table;margin:0 auto 10px;background:#FFF;border:1px solid #E2DACA;border-radius:999px;padding:2px 14px;font-size:14px}
+
+.portatil{background:linear-gradient(180deg,#3B3F47,#202329);border-radius:18px 18px 4px 4px;padding:24px 18px 18px;position:relative;box-shadow:0 6px 16px rgba(0,0,0,.2)}
+.portatil::before{content:"";position:absolute;top:9px;left:50%;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;background:#5A5F68;box-shadow:0 0 0 2px #2A2D33}
+.ecra{border-radius:3px}
+.base{height:22px;margin:0 -34px;background:linear-gradient(180deg,#E2DED6,#B7B2A7);border-radius:2px 2px 20px 20px;position:relative;box-shadow:0 10px 16px rgba(0,0,0,.18)}
+.base::after{content:"";position:absolute;left:50%;top:0;width:130px;margin-left:-65px;height:7px;background:#A8A396;border-radius:0 0 9px 9px}
+
+.telemovel{background:linear-gradient(160deg,#2C3038,#121418);border-radius:42px;padding:12px;position:relative;box-shadow:0 10px 22px rgba(0,0,0,.26)}
+.telemovel::before{content:"";position:absolute;right:-3px;top:120px;width:4px;height:64px;background:#2C3038;border-radius:0 4px 4px 0}
+.telemovel::after{content:"";position:absolute;left:-3px;top:100px;width:4px;height:36px;background:#2C3038;border-radius:4px 0 0 4px}
+.tel-ecra{border-radius:32px}
+.barra-estado{position:relative;background:#FFF;color:#111;font-weight:bold;padding:9px 24px 6px}
+.barra-estado::after{content:"";position:absolute;left:50%;top:6px;width:84px;height:20px;margin-left:-42px;background:#000;border-radius:12px}
+.barra-endereco{background:#F4F5F7}
+
+#resumo{border:1px solid var(--linha);border-left:6px solid var(--azul);border-radius:12px}
+.festa-caixa{border-width:0;border-top:8px solid var(--azul)}
+
+@media (max-width:1000px){header.topo{grid-template-columns:1fr;gap:8px}.progresso{justify-self:stretch;max-width:none}}
+
+/* ===== Versão para telemóvel (data-modo="tlm") ===== */
+html[data-modo="tlm"] .dica-rodar{display:none !important}
+html[data-modo="tlm"] .marca-nome span{display:none}
+html[data-modo="tlm"] header.topo{padding:8px 12px 8px 18px;gap:8px}
+html[data-modo="tlm"] header.topo h1{font-size:17px}
+html[data-modo="tlm"] .botoes-topo{gap:6px}
+html[data-modo="tlm"] #btnEcra{display:none}
+html[data-modo="tlm"] main{padding:8px 10px 20px}
+html[data-modo="tlm"] .instrucao{position:sticky;top:0;z-index:20;padding:8px 12px}
+html[data-modo="tlm"] .instrucao p.texto{font-size:17px}
+html[data-modo="tlm"] .palco{display:flex;flex-direction:column;align-items:center;width:auto;gap:14px;padding:12px 8px 18px}
+</style>
+</head>
+<body>
+<header class="topo">
+  <div class="marca">
+    <div class="logo" aria-hidden="true">
+      <svg width="26" height="22" viewBox="0 0 26 22"><rect x="4" y="2" width="18" height="12" rx="1.5" fill="none" stroke="#FFF" stroke-width="2"/><path d="M1 18h24l-2 3H3z" fill="#FFF"/><path d="M10 8l2 2 4-4" fill="none" stroke="#E8A31B" stroke-width="2"/></svg>
+    </div>
+    <div>
+      <p class="marca-nome">Gabinete Digital <span>· Ficha n.º 1 · Simulação com dados inventados</span></p>
+      <h1>Desbloqueio e atualização do CUCo</h1>
+    </div>
+  </div>
+  <div class="progresso" aria-hidden="true">
+    <div class="prog-linha"><span id="progTxt"></span><span id="progPct"></span></div>
+    <div class="prog-barras"><div class="prog-parte p1" id="prog1"></div><div class="prog-parte p2" id="prog2"></div></div>
+    <div class="prog-legenda"><span class="p1">Parte 1 · Desbloquear</span><span class="p2">Parte 2 · Atualizar</span></div>
+  </div>
+  <div class="botoes-topo">
+    <a id="btnEnviar" class="botao" href="#" target="_blank" rel="noopener" role="button">Enviar resultado</a>
+    <button id="btnEcra" type="button">Ecrã inteiro</button>
+    <button id="btnAjuda" type="button">Ajuda</button>
+    <button id="btnRecomecar" type="button">Recomeçar</button>
+  </div>
+</header>
+
+<main>
+  <div class="instrucao" aria-live="polite">
+    <div class="num" id="numCirculo">1</div>
+    <div class="txt">
+      <p class="passo" id="numPasso"></p>
+      <p class="texto" id="textoPasso"></p>
+      <p id="mensagem" role="alert"></p>
+    </div>
+  </div>
+
+  <p class="dica-rodar">! Roda o telemóvel na horizontal para veres melhor.</p>
+  <div id="escala"><div class="palco" id="palco">
+    <!-- Computador -->
+    <section class="pc">
+      <p class="legenda">Computador</p>
+      <div class="portatil">
+        <div class="ecra">
+          <div class="vista" id="pcDesligado">
+            <div class="inicio-box">
+              <button class="principal" id="btnLigar" type="button">Ligar o computador</button>
+            </div>
+          </div>
+
+          <div class="vista" id="pcAzul">
+            <span class="linha">Esta unidade esta bloqueada!</span>
+            <span class="linha">Existe um problema com o seu processo.</span>
+            <span class="linha">Contacte o seu vendedor para obter mais Informacoes...</span>
+            <span class="linha"> </span>
+            <span class="linha" id="lnMSN"> 1. Machine Serial Number : <span id="vMSN"></span></span>
+            <span class="linha" id="lnCT"> 2. Certified Time        : <span id="vCT"></span></span>
+            <span class="linha" id="lnUC"> 3. Usage Counter         : <span id="vUC"></span></span>
+            <span class="linha"> </span>
+            <span class="linha" id="lnCod"> Enter Unblocking Code: <input id="pcCodigo" type="text" autocomplete="off" spellcheck="false" aria-label="Código de desbloqueio" disabled></span>
+            <span class="linha" id="lnOK" hidden> The Password is correct, System will Boot</span>
+            <span class="linha" id="lnPontos" hidden> ......</span>
+            <div id="lupa" aria-live="polite"></div>
+          </div>
+
+          <div class="vista" id="pcBaixo">
+            <div class="etiqueta" id="etqReg" role="button" tabindex="0" aria-label="Etiqueta com marcações CE">
+              Notebook PC &nbsp; Model: XX-0000<br>Input: 19V 2.1A<br>Made in China<br><b>CE &nbsp; FC</b>
+            </div>
+            <div class="etiqueta" id="etqSN" role="button" tabindex="0" aria-label="Etiqueta pequena com código de barras">
+              <div class="codbarras"></div>
+              <span id="txtEtqSN"></span>
+            </div>
+            <div class="etiqueta" id="etqInv" role="button" tabindex="0" aria-label="Etiqueta de inventário">
+              <b>Inventário escolar</b>
+              <div class="codbarras"></div>
+              10004821
+            </div>
+            <div id="zoomSN"></div>
+          </div>
+
+          <div class="vista" id="pcWin">
+            <div class="janela" id="wBrowser" hidden>
+              <div class="w-tabs"><span class="w-tab" id="wTab">Google</span><span class="w-ctrl">– ☐ ✕</span></div>
+              <div class="w-barra"><span>←  →  ⟳</span><span class="w-end" id="wEnd"></span><span class="w-ico" id="wIcoDown" title="Transferências">⤓</span></div>
+              <div class="w-conteudo">
+                <div id="wGoogle" hidden>
+                  <div class="g-logo"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></div>
+                  <form class="g-pesq" id="wFormPesq">
+                    <input id="wPesq" type="text" autocomplete="off" spellcheck="false" aria-label="Pesquisa no Google" placeholder="Escreve aqui">
+                    <button type="submit" id="wBtnPesq">Pesquisar</button>
+                  </form>
+                </div>
+                <div id="wResultados" hidden>
+                  <div class="w-res" id="wResUnl" role="button" tabindex="0">
+                    <div class="url">cuco.inforlandia.pt › ucode</div>
+                    <div class="tit">CUCo Unlocker</div>
+                    <div class="desc">Desbloqueio do computador. Número de série na etiqueta por baixo do equipamento...</div>
+                  </div>
+                  <div class="w-res" id="wResUpd" role="button" tabindex="0">
+                    <div class="url">cuco.inforlandia.pt › updates</div>
+                    <div class="tit">Updates CUCo</div>
+                    <div class="desc">Utilitário de update. Clique no botão "Descarregar" para fazer o download do utilitário de atualização...</div>
+                  </div>
+                  <div class="w-res" id="wResVid" role="button" tabindex="0">
+                    <div class="url">videos.exemplo.pt</div>
+                    <div class="tit">Vídeo: desbloquear o CUCo</div>
+                    <div class="desc">Vídeo com o desbloqueio passo a passo...</div>
+                  </div>
+                </div>
+                <div id="wUpdates" hidden>
+                  <div class="u-topo">UPDATES CUCo</div>
+                  <div class="u-azul">
+                    <h3>Utilitário de Update</h3>
+                    <p>Clique no botão "Descarregar" para fazer o download do utilitário de atualização.</p>
+                    <button type="button" class="u-btn" id="wBtnDesc">Descarregar</button>
+                    <p>A seguir execute o ficheiro para instalar a atualização.</p>
+                  </div>
+                  <div class="u-escuro">
+                    <h3>Instruções de update</h3>
+                    <button type="button" class="u-btn" id="wBtnAbrir">Abrir</button>
+                  </div>
+                </div>
+              </div>
+              <div class="w-pop" id="wDownPop" hidden>
+                <b>Histórico de transferências recentes</b>
+                <div class="w-pop-linha">
+                  <span class="ico-ct">C</span>
+                  <span>CtoolGui.exe<br><small>334 KB • Concluído</small></span>
+                  <button type="button" class="w-mini" id="wPasta" title="Mostrar numa pasta" aria-label="Mostrar numa pasta"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><path d="M1 3h7l2 2h11v12H1z" fill="#F2B84B" stroke="#8A6414" stroke-width="1.2"/></svg></button>
+                  <button type="button" class="w-mini" id="wAbrirDown" title="Abrir" aria-label="Abrir"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M7 2H2v14h14v-5M10 2h6v6M16 2L8 10" fill="none" stroke="#333" stroke-width="1.8"/></svg></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="janela" id="wExplorer" hidden>
+              <div class="w-tabs"><span class="w-tab">Transferências</span><span class="w-ctrl">– ☐ ✕</span></div>
+              <div class="e-caminho">Este PC  ›  Transferências</div>
+              <table class="e-lista">
+                <thead><tr><th>Nome</th><th>Data de modificação</th><th>Tipo</th><th>Tamanho</th></tr></thead>
+                <tbody>
+                  <tr class="e-linha" id="wFicheiro"><td><span class="e-nome"><span class="ico-ct">C</span>CtoolGui</span></td><td class="e-hoje"></td><td>Aplicação</td><td>335 KB</td></tr>
+                  <tr class="e-linha e-outro"><td><span class="e-nome"><span class="ico-doc"></span>horario_turma</span></td><td>02/10/2026 10:15</td><td>Documento PDF</td><td>120 KB</td></tr>
+                  <tr class="e-linha e-outro"><td><span class="e-nome"><span class="ico-doc"></span>ficha_trabalho</span></td><td>28/09/2026 18:40</td><td>Documento do Word</td><td>45 KB</td></tr>
+                  <tr class="e-linha e-outro"><td><span class="e-nome"><span class="ico-doc"></span>fotografias_visita</span></td><td>21/09/2026 16:02</td><td>Pasta comprimida</td><td>2 300 KB</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="ct-jan" id="wCtool" hidden>
+              <div class="w-tabs"><span>Ferramenta de Instalação - CTool v1.3</span><span class="w-ctrl">– ✕</span></div>
+              <div class="ct-log" id="ctLog"></div>
+              <div class="ct-barra"><div id="ctProg"></div></div>
+              <button type="button" class="ct-btn" id="ctBtn">Iniciar Atualização</button>
+            </div>
+
+            <div id="wUac" hidden>
+              <div class="uac-caixa">
+                <div class="uac-tit">Controlo de Conta de Utilizador</div>
+                <div class="uac-perg">Pretende permitir que esta aplicação faça alterações ao seu dispositivo?</div>
+                <div class="uac-app"><span class="ico-ct">C</span>CtoolGui.exe</div>
+                <div class="uac-info">Editor verificado: SOFTI9 - INOVAÇÃO INFORMÁTICA, LDA<br>Origem do ficheiro: Transferido da Internet</div>
+                <div class="uac-botoes"><button type="button" id="uacSim">Sim</button><button type="button" id="uacNao" class="uac-nao">Não</button></div>
+              </div>
+            </div>
+
+            <div class="w-tarefas">
+              <span class="w-ini" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              <span class="w-proc">Procurar</span>
+              <button type="button" class="w-icone" id="icoChrome" aria-label="Abrir o Chrome" title="Chrome"><span class="chrome"></span></button>
+              <span class="w-icone" aria-hidden="true"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><path d="M1 3h7l2 2h11v12H1z" fill="#F2B84B" stroke="#8A6414" stroke-width="1.2"/></svg></span>
+              <span class="w-hora" id="wHora"></span>
+            </div>
+          </div>
+
+          <div class="vista" id="pcArranque">
+            <div class="roda" aria-hidden="true"></div>
+            <div>A iniciar o sistema...</div>
+          </div>
+        </div>
+      </div>
+      <div class="base"></div>
+    </section>
+
+    <!-- Telemóvel -->
+    <section class="tel">
+      <p class="legenda">Telemóvel</p>
+      <div class="telemovel">
+        <div class="tel-ecra">
+          <div class="barra-estado"><span>09:27</span><span>4G 80%</span></div>
+          <div id="telPausa">Na Parte 2 já não precisas do telemóvel. Trabalha só no computador.</div>
+          <div class="barra-endereco"><span class="end" id="endereco">pesquisa</span><span class="tag-sim">SIMULAÇÃO</span></div>
+          <div class="tel-conteudo">
+
+            <div class="tel-vista" id="telInicio">
+              <div class="titulo-pesq">Pesquisa</div>
+              <form class="pesquisa" id="formPesq">
+                <input id="pesqInput" type="text" placeholder="Escreve aqui" autocomplete="off" aria-label="Pesquisa">
+                <button id="btnPesq" type="submit">Procurar</button>
+              </form>
+            </div>
+
+            <div class="tel-vista" id="telResultados">
+              <div class="resultado" id="resErrado1" role="button" tabindex="0">
+                <div class="url">escola-exemplo.pt › kit-digital</div>
+                <div class="tit">Como desbloquear o sistema CUCo</div>
+                <div class="desc">Instruções para os encarregados de educação, passo a passo...</div>
+              </div>
+              <div class="resultado" id="resCerto" role="button" tabindex="0">
+                <div class="url">cuco.inforlandia.pt › ucode</div>
+                <div class="tit">Desbloqueio CUCo - Inforlandia</div>
+                <div class="desc">Utilitário para desbloquear computadores com o sistema de segurança CUCo.</div>
+              </div>
+              <div class="resultado" id="resErrado2" role="button" tabindex="0">
+                <div class="url">videos.exemplo.pt</div>
+                <div class="tit">Vídeo: desbloquear o computador da escola</div>
+                <div class="desc">Vídeo com o processo completo de desbloqueio...</div>
+              </div>
+            </div>
+
+            <div class="tel-vista" id="telForm">
+              <p class="form-titulo">Desbloqueio CUCo</p>
+              <div class="form-intro">Este utilitário serve para desbloquear computadores com o sistema de segurança CUCo, quando o bloqueio não foi pedido pelo dono do equipamento.</div>
+
+              <div class="campo">
+                <label for="fSN">N.º de série do equipamento (não é o "CUCo serial": é o SN da etiqueta por baixo do computador)</label>
+                <div class="linha-campo"><input id="fSN" type="text" autocomplete="off" spellcheck="false"><span class="estado-campo" id="eSN"></span></div>
+              </div>
+              <div class="campo">
+                <label for="fCT">CT (certified time)</label>
+                <div class="linha-campo"><input id="fCT" type="text" autocomplete="off" spellcheck="false"><span class="estado-campo" id="eCT"></span></div>
+              </div>
+              <div class="campo">
+                <label for="fUC">UC (usage counter) (pode ignorar os zeros à esquerda)</label>
+                <div class="linha-campo"><input id="fUC" type="text" autocomplete="off" spellcheck="false"><span class="estado-campo" id="eUC"></span></div>
+              </div>
+              <button id="btnMostrar" type="button">Mostrar código</button>
+
+              <div id="caixaCodigo">
+                O novo código de desbloqueio é:<br>
+                <span class="cod" id="txtCodigo"></span><br>
+                <small>Este código só serve para este computador e para este momento. Se o computador for reiniciado, é preciso pedir um código novo.</small>
+              </div>
+              <div class="leitura"><b>Leitura obrigatória:</b> faça já a atualização do sistema de segurança, para evitar novos bloqueios.</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+  </div></div>
+
+  <div id="festa" role="dialog" aria-modal="true" aria-labelledby="festaTitulo">
+    <canvas id="confettis"></canvas>
+    <div class="festa-caixa">
+      <div class="medalha" aria-hidden="true">✓</div>
+      <h2 id="festaTitulo">Parabéns!</h2>
+      <p class="sub">Fizeste um ótimo trabalho.</p>
+      <ul class="festa-lista">
+        <li>✓ <b>Parte 1:</b> desbloqueaste o computador.</li>
+        <li>✓ <b>Parte 2:</b> atualizaste o sistema de segurança.</li>
+      </ul>
+      <div class="festa-dados" id="festaDados"></div>
+      <p class="festa-frase" id="festaFrase"></p>
+      <div class="festa-botoes">
+        <button type="button" id="btnFestaResumo">Ver o resumo</button>
+        <a class="botao principal" id="btnFestaEnviar" href="#" target="_blank" rel="noopener" role="button">Enviar resultado</a>
+        <button type="button" id="btnFestaRepetir">Repetir</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="resumo">
+    <h2>Parte 1: desbloquear</h2>
+    <ol>
+      <li>Ligar o computador e ver o ecrã azul de bloqueio.</li>
+      <li>No telemóvel, pesquisar "cuco ucode" e abrir a página Desbloqueio CUCo.</li>
+      <li>Escrever o número de série da etiqueta por baixo do computador.</li>
+      <li>Copiar o Certified Time (CT) e o Usage Counter (UC) do ecrã azul.</li>
+      <li>Tocar em Mostrar código.</li>
+      <li>Escrever o código no computador e carregar em Enter.</li>
+    </ol>
+    <h2>Parte 2: atualizar o sistema de segurança</h2>
+    <ol>
+      <li>Abrir o Chrome e pesquisar "desbloqueio cuco update".</li>
+      <li>Abrir a página Updates CUCo e tocar em Descarregar.</li>
+      <li>Abrir a pasta Transferências e fazer duplo clique em CtoolGui.</li>
+      <li>No aviso do Windows, tocar em Sim.</li>
+      <li>Tocar em Iniciar Atualização e esperar que termine.</li>
+    </ol>
+    <p><b>Importante:</b> sem a Parte 2, o computador pode voltar a bloquear.</p>
+  </section>
+</main>
+
+<script>
+(function(){
+  // Dados inventados
+  var D = {
+    msn: "7A41C09E3B52F81D6C0E94A27B13F05C",
+    ct: "15A3C7D2",
+    uc: "00000007",
+    sn: "2109A7KX00451M",
+    codigo: "5e8c1d7a2f"
+  };
+
+  var passos = [
+    {texto:"Liga o computador: toca em Ligar o computador.", alvo:"btnLigar"},
+    {texto:"O computador está bloqueado. Repara nos 2 números de que vais precisar: o Certified Time e o Usage Counter.", alvo:"lnCT", botao:true},
+    {texto:"No telemóvel, escreve cuco ucode na pesquisa e toca em Procurar.", alvo:"pesqInput"},
+    {texto:"Toca no resultado Desbloqueio CUCo.", alvo:"resCerto"},
+    {texto:"Vira o computador ao contrário. Toca na etiqueta que tem o número de série (SN).", alvo:"etqSN"},
+    {texto:"Escreve o número de série no primeiro campo do telemóvel.", alvo:"fSN"},
+    {texto:"Copia o Certified Time do ecrã azul para o campo CT.", alvo:"fCT"},
+    {texto:"Copia o Usage Counter para o campo UC. Podes tirar os zeros à esquerda.", alvo:"fUC"},
+    {texto:"Toca em Mostrar código.", alvo:"btnMostrar"},
+    {texto:"Escreve o código no computador, a seguir a Enter Unblocking Code, e carrega em Enter.", alvo:"pcCodigo"},
+    {texto:"Parte 1 concluída: o computador arrancou. Agora falta atualizar o sistema de segurança, para não voltar a bloquear. Carrega em Continuar.", alvo:"btnContinuar", botao:true},
+    {texto:"Abre o Chrome: toca no ícone redondo do Chrome, na barra de tarefas em baixo.", alvo:"icoChrome"},
+    {texto:"Escreve desbloqueio cuco update na pesquisa e carrega em Pesquisar.", alvo:"wPesq"},
+    {texto:"Toca no resultado Updates CUCo.", alvo:"wResUpd"},
+    {texto:"Toca em Descarregar.", alvo:"wBtnDesc"},
+    {texto:"A transferência terminou. Toca no ícone da pasta, ao lado de CtoolGui.exe (Mostrar numa pasta).", alvo:"wPasta"},
+    {texto:"Faz duplo clique no ficheiro CtoolGui (dois toques rápidos).", alvo:"wFicheiro"},
+    {texto:"O Windows pede autorização. Toca em Sim.", alvo:"uacSim"},
+    {texto:"Toca em Iniciar Atualização e espera que termine.", alvo:"ctBtn"},
+    {texto:"Concluído. O computador está desbloqueado e atualizado.", alvo:null}
+  ];
+  var TOTAL = passos.length - 1;
+  var erros = 0, inicio = 0, nome = "", ajuda1 = false, ajuda2 = false;
+
+  // ===== Envio de resultados para o Google Forms =====
+  // Link "preenchido previamente" do formulário (2 campos, por esta ordem:
+  // Desbloqueio, Atualização). As outras perguntas respondem-se no formulário. Vazio = sem envio.
+  var FORM_LINK = "https://docs.google.com/forms/d/e/1FAIpQLSdBPXtF9v6werU7q1sHDXfsgW98TuphThZbaNnO4LnlYjgg4w/viewform?usp=pp_url&entry.672853900=x&entry.339809165=x";
+  var passo = 0, ultimoPassoVisto = -1;
+
+  function $(id){ return document.getElementById(id); }
+  function norm(s){ return String(s).replace(/\s+/g,"").toUpperCase(); }
+
+  function msg(texto, tipo){
+    var m = $("mensagem");
+    m.textContent = texto ? ((tipo === "erro" ? "✗ " : "✓ ") + texto) : "";
+    m.className = tipo || "";
+    if (tipo === "erro") erros++;
+    setTimeout(ajustar, 0);
+  }
+
+  function mostrarPc(id){
+    ["pcDesligado","pcAzul","pcBaixo","pcArranque","pcWin"].forEach(function(v){
+      $(v).classList.toggle("ativa", v === id);
+    });
+  }
+  function mostrarTel(id){
+    ["telInicio","telResultados","telForm"].forEach(function(v){
+      $(v).classList.toggle("ativa", v === id);
+    });
+    $("endereco").textContent = id === "telForm" ? "cuco.inforlandia.pt/ucode/" : "pesquisa";
+  }
+
+  function render(){
+    var p = passos[passo];
+    $("numPasso").textContent = passo < 10 ? ("Parte 1: desbloquear · Passo " + (passo+1) + " de 10")
+      : passo < TOTAL ? ("Parte 2: atualizar · Passo " + (passo-9) + " de 9") : "Fim";
+    $("textoPasso").textContent = p.texto;
+    $("numCirculo").textContent = passo === TOTAL ? "✓" : (passo < 10 ? passo + 1 : passo - 9);
+    $("progTxt").textContent = passo < TOTAL ? ("Passo " + (passo + 1) + " de " + TOTAL) : "Concluído";
+    $("progPct").textContent = Math.round(passo / TOTAL * 100) + "%";
+    Array.prototype.forEach.call(document.querySelectorAll(".prog-parte i"), function(seg, k){
+      seg.className = k < passo ? "feito" : (k === passo ? "atual" : "");
+    });
+
+    // Computador
+    if (passo === 0) mostrarPc("pcDesligado");
+    else if (passo === 4 || passo === 5) mostrarPc("pcBaixo");
+    else if (passo === 10) { /* gerido em concluir() */ }
+    else if (passo >= 11) mostrarPc("pcWin");
+    else mostrarPc("pcAzul");
+    estadoWin();
+    $("telPausa").classList.toggle("ativa", passo >= 10);
+
+    // Telemóvel
+    if (passo <= 2) mostrarTel("telInicio");
+    else if (passo === 3) mostrarTel("telResultados");
+    else mostrarTel("telForm");
+
+    $("pesqInput").disabled = passo !== 2;
+    $("btnPesq").disabled = passo !== 2;
+    $("fSN").disabled = passo !== 5;
+    $("fCT").disabled = passo !== 6;
+    $("fUC").disabled = passo !== 7;
+    $("btnMostrar").disabled = passo < 5 || passo > 8;
+    $("pcCodigo").disabled = passo !== 9;
+    $("zoomSN").style.display = passo === 5 ? "block" : "none";
+
+    // Destaques no ecrã azul
+    $("lnCT").classList.toggle("destaque", passo === 6 || passo === 1);
+    $("lnUC").classList.toggle("destaque", passo === 7 || passo === 1);
+    $("lnCod").classList.toggle("destaque", passo === 9);
+    var lupa = $("lupa");
+    var txtLupa = {
+      6: "<small>Lupa: a linha que vais copiar</small>Certified Time : " + D.ct,
+      7: "<small>Lupa: a linha que vais copiar</small>Usage Counter : " + D.uc
+    }[passo];
+    lupa.innerHTML = txtLupa || "";
+    lupa.style.display = txtLupa ? "block" : "none";
+    var ativos = {2:"pesqInput",5:"fSN",6:"fCT",7:"fUC",8:"btnMostrar",9:"txtCodigo"};
+    ["pesqInput","fSN","fCT","fUC","btnMostrar","txtCodigo"].forEach(function(id){
+      $(id).classList.toggle("ativo", ativos[passo] === id);
+    });
+    var idAtivo = ativos[passo];
+    if (idAtivo && passo >= 5) setTimeout(function(){ var el = $(idAtivo); if (el) el.scrollIntoView({block:"nearest"}); }, 60);
+    if (MODO_TLM && passo !== ultimoPassoVisto) {
+      ultimoPassoVisto = passo;
+      var alvoTlm = p.alvo ? $(p.alvo) : null;
+      if (alvoTlm && passo > 0) setTimeout(function(){ var caixa = alvoTlm.closest(".pc, .tel") || alvoTlm; caixa.scrollIntoView({block:"center", behavior:"smooth"}); }, 120);
+    }
+    setTimeout(ajustar, 0);
+
+    // Botão "Continuar" no passo 1
+    var cont = $("btnContinuar");
+    if (p.botao && !cont) {
+      cont = document.createElement("button");
+      cont.id = "btnContinuar"; cont.type = "button"; cont.className = "principal";
+      cont.textContent = "Continuar";
+      cont.onclick = function(){ avancar(); };
+      document.querySelector(".instrucao").appendChild(cont);
+    } else if (!p.botao && cont) { cont.remove(); }
+
+    $("resumo").style.display = passo === TOTAL ? "block" : "none";
+
+    var foco = {2:"pesqInput",5:"fSN",6:"fCT",7:"fUC",9:"pcCodigo",12:"wPesq"}[passo];
+    if (foco) setTimeout(function(){ $(foco).focus({preventScroll:true}); }, 50);
+  }
+
+  function avancar(){ passo++; render(); }
+
+  function marcar(idEstado){ $(idEstado).textContent = "✓ Certo"; }
+
+  function iniciar(){
+    passo = 0;
+    $("vMSN").textContent = D.msn;
+    $("vCT").textContent = D.ct;
+    $("vUC").textContent = D.uc;
+    $("txtEtqSN").textContent = "SN: " + D.sn;
+    $("zoomSN").textContent = "SN: " + D.sn;
+    $("txtCodigo").textContent = D.codigo;
+    ["pesqInput","fSN","fCT","fUC","pcCodigo"].forEach(function(id){ $(id).value = ""; });
+    ["eSN","eCT","eUC"].forEach(function(id){ $(id).textContent = ""; });
+    $("caixaCodigo").style.display = "none";
+    $("wPesq").value = "";
+    $("ctLog").textContent = "";
+    $("ctProg").style.width = "0"; $("ctProg").classList.remove("ok");
+    $("ctBtn").disabled = false;
+    $("wFicheiro").classList.remove("sel");
+    Array.prototype.forEach.call(document.querySelectorAll(".e-hoje"), function(el){ el.textContent = hoje() + " 09:41"; });
+    $("wHora").innerHTML = "09:41<br>" + hoje();
+    $("lnOK").hidden = true; $("lnPontos").hidden = true;
+    msg("");
+    erros = 0; inicio = Date.now(); ajuda1 = false; ajuda2 = false;
+    $("festa").classList.remove("ativa");
+    render();
+  }
+
+  // Passo 1: ligar
+  $("btnLigar").onclick = function(){
+    nome = "formando";
+    msg(""); erros = 0; inicio = Date.now(); ajuda1 = false; ajuda2 = false; avancar();
+  };
+
+  function tempoTexto(){
+    if (!inicio) return "0 s";
+    var seg = Math.max(1, Math.round((Date.now() - inicio) / 1000));
+    var m = Math.floor(seg / 60), sg = seg % 60;
+    return (m ? m + " min " : "") + sg + " s";
+  }
+  function urlResultado(){
+    function estado(feito){ return feito ? "Consegui" : "Tenho de treinar mais"; }
+    var valores = [estado(passo >= 10), estado(passo >= TOTAL)];
+    var i = 0;
+    return FORM_LINK.replace(/(entry\.\d+=)[^&]*/g, function(m, chave){ return chave + encodeURIComponent(valores[i++] || ""); });
+  }
+  function atualizarLinks(){
+    if (!FORM_LINK) return;
+    var u = nome ? urlResultado() : "#";
+    $("btnEnviar").href = u; $("btnFestaEnviar").href = u;
+  }
+  function enviarResultado(e){
+    atualizarLinks();
+    if (!nome) { e.preventDefault(); msg("Primeiro liga o computador para começar o simulador.", "erro"); return; }
+    msg("O formulário abriu numa janela nova. Responde às perguntas e carrega em Enviar.", "certo");
+  }
+  ["btnEnviar", "btnFestaEnviar"].forEach(function(id){
+    var el = $(id);
+    el.addEventListener("pointerdown", atualizarLinks);
+    el.addEventListener("focus", atualizarLinks);
+    el.addEventListener("keydown", function(ev){ if (ev.key === " ") { ev.preventDefault(); el.click(); } });
+    el.addEventListener("click", enviarResultado);
+  });
+  if (!FORM_LINK) { $("btnEnviar").hidden = true; $("btnFestaEnviar").hidden = true; }
+
+  // Passo 3: pesquisa
+  $("formPesq").onsubmit = function(e){
+    e.preventDefault();
+    var v = $("pesqInput").value.toLowerCase();
+    if (v.indexOf("cuco") === -1) { msg("Escreve cuco ucode na pesquisa.", "erro"); return; }
+    msg("Pesquisa feita.", "certo"); avancar();
+  };
+
+  // Passo 4: resultados
+  function clicavel(id, fn){
+    var el = $(id);
+    el.onclick = fn;
+    el.onkeydown = function(e){ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } };
+  }
+  clicavel("resCerto", function(){ if (passo !== 3) return; msg("Página certa.", "certo"); avancar(); });
+  clicavel("resErrado1", function(){ if (passo !== 3) return; msg("Essa página só tem instruções. O código só se obtém na página Desbloqueio CUCo.", "erro"); });
+  clicavel("resErrado2", function(){ if (passo !== 3) return; msg("Esse é um vídeo. O código só se obtém na página Desbloqueio CUCo.", "erro"); });
+
+  // Passo 5: etiquetas
+  clicavel("etqSN", function(){ if (passo !== 4) return; msg("É esta a etiqueta. O número de série começa a seguir a SN.", "certo"); avancar(); });
+  clicavel("etqInv", function(){ if (passo !== 4) return; msg("Essa é a etiqueta de inventário. Procura a etiqueta pequena com o número de série (SN).", "erro"); });
+  clicavel("etqReg", function(){ if (passo !== 4) return; msg("Essa etiqueta tem o modelo e as marcações. Procura a etiqueta pequena com o número de série (SN).", "erro"); });
+
+  // Campos do telemóvel
+  function campo(id, idEstado, passoCampo, valida, erroTexto){
+    var el = $(id);
+    el.addEventListener("input", function(){
+      if (passo !== passoCampo) return;
+      if (valida(el.value)) { marcar(idEstado); msg("Certo.", "certo"); setTimeout(avancar, 400); }
+    });
+    el.addEventListener("keydown", function(e){
+      if (e.key !== "Enter" || passo !== passoCampo) return;
+      e.preventDefault();
+      if (!valida(el.value)) msg(erroTexto, "erro");
+    });
+  }
+  campo("fSN","eSN",5, function(v){ return norm(v) === D.sn; },
+    "O número de série não está certo. Confirma letra a letra na etiqueta.");
+  campo("fCT","eCT",6, function(v){ return norm(v) === D.ct; },
+    "O CT não está certo. Copia o valor da linha Certified Time.");
+  campo("fUC","eUC",7, function(v){ var n = norm(v).replace(/^0+/,""); return n === norm(D.uc).replace(/^0+/,""); },
+    "O UC não está certo. Copia o valor da linha Usage Counter.");
+
+  // Passo 10: mostrar código
+  $("btnMostrar").onclick = function(){
+    if (passo < 8) {
+      var falta = {5:"o número de série",6:"o CT",7:"o UC"}[passo];
+      msg("Ainda falta preencher " + falta + ".", "erro"); return;
+    }
+    if (passo !== 8) return;
+    $("caixaCodigo").style.display = "block";
+    $("caixaCodigo").scrollIntoView({block:"nearest"});
+    msg("Código gerado.", "certo");
+    avancar();
+  };
+
+  // Passo 11: código no computador
+  $("pcCodigo").addEventListener("keydown", function(e){
+    if (e.key !== "Enter" || passo !== 9) return;
+    e.preventDefault();
+    if (norm(this.value) === norm(D.codigo)) concluir();
+    else msg("O código não está certo. Confirma letra a letra o código do telemóvel.", "erro");
+  });
+
+  function concluir(){
+    $("pcCodigo").disabled = true;
+    $("lnOK").hidden = false; $("lnPontos").hidden = false;
+    msg("Código aceite.", "certo");
+    passo = 10;
+    render();
+    setTimeout(function(){ if (passo === 10) mostrarPc("pcArranque"); }, 2000);
+    setTimeout(function(){ if (passo === 10) mostrarPc("pcWin"); }, 4000);
+  }
+
+  // ----- Parte 2: Windows -----
+  function hoje(){
+    var d = new Date(), p = function(n){ return (n<10?"0":"") + n; };
+    return p(d.getDate()) + "/" + p(d.getMonth()+1) + "/" + d.getFullYear();
+  }
+  function estadoWin(){
+    var p = passo;
+    $("wBrowser").hidden = !(p >= 12 && p <= 15);
+    $("wGoogle").hidden = p !== 12;
+    $("wResultados").hidden = p !== 13;
+    $("wUpdates").hidden = !(p === 14 || p === 15);
+    $("wDownPop").hidden = p !== 15;
+    $("wExplorer").hidden = p < 16;
+    $("wUac").hidden = p !== 17;
+    $("wCtool").hidden = p < 18;
+    $("wTab").textContent = (p === 12 || p === 13) ? "Google" : "Updates CUCo";
+    $("wEnd").textContent = {12:"google.com",13:"google.com/search?q=desbloqueio+cuco+update",14:"cuco.inforlandia.pt/updates/",15:"cuco.inforlandia.pt/updates/"}[p] || "";
+    $("wPesq").disabled = p !== 12;
+    $("wBtnPesq").disabled = p !== 12;
+    $("wIcoDown").classList.toggle("ativo", p === 15);
+  }
+
+  clicavel("icoChrome", function(){
+    if (passo !== 11) return;
+    msg("Chrome aberto.", "certo"); avancar();
+  });
+  $("wFormPesq").onsubmit = function(e){
+    e.preventDefault();
+    if (passo !== 12) return;
+    var v = $("wPesq").value.toLowerCase();
+    // Aceita pequenos erros de escrita, como faz o Google (ex.: "upedate", "updte", "atualizacao")
+    if (v.indexOf("cuco") === -1 && v.indexOf("cucu") === -1) {
+      msg("Falta a palavra cuco. Escreve: desbloqueio cuco update", "erro"); return;
+    }
+    if (!/\b(up|atu|act)/.test(v)) {
+      msg("Falta a palavra update. Escreve: desbloqueio cuco update", "erro"); return;
+    }
+    msg("Pesquisa feita.", "certo"); avancar();
+  };
+  clicavel("wResUpd", function(){ if (passo !== 13) return; msg("Página certa.", "certo"); avancar(); });
+  clicavel("wResUnl", function(){ if (passo !== 13) return; msg("Essa é a página do desbloqueio, que já usaste na Parte 1. Agora precisas da página Updates CUCo.", "erro"); });
+  clicavel("wResVid", function(){ if (passo !== 13) return; msg("Esse é um vídeo. A atualização está na página Updates CUCo.", "erro"); });
+  $("wBtnDesc").onclick = function(){
+    if (passo !== 14) return;
+    msg("Ficheiro descarregado.", "certo"); avancar();
+  };
+  $("wBtnAbrir").onclick = function(){
+    if (passo !== 14 && passo !== 15) return;
+    msg("Esse botão só abre as instruções. Para atualizar, usa o botão Descarregar.", "erro");
+  };
+  $("wPasta").onclick = function(){ if (passo !== 15) return; msg("Pasta Transferências aberta.", "certo"); avancar(); };
+  $("wAbrirDown").onclick = function(){
+    if (passo !== 15) return;
+    msg("Também funciona, mas aqui vamos ver onde o ficheiro ficou guardado. Toca no ícone da pasta.", "erro");
+  };
+  var ultimoToque = 0;
+  clicavel("wFicheiro", function(){
+    if (passo !== 16) return;
+    var agora = Date.now();
+    $("wFicheiro").classList.add("sel");
+    if (agora - ultimoToque < 700) { msg("Ficheiro aberto.", "certo"); avancar(); }
+    else msg("Ficheiro selecionado. Agora toca duas vezes seguidas, depressa.", "certo");
+    ultimoToque = agora;
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".e-outro"), function(el){
+    el.onclick = function(){
+      if (passo !== 16) return;
+      msg("Esse não é o ficheiro certo. Procura CtoolGui, do tipo Aplicação.", "erro");
+    };
+  });
+  $("uacSim").onclick = function(){ if (passo !== 17) return; msg("Autorização dada.", "certo"); avancar(); };
+  $("uacNao").onclick = function(){
+    if (passo !== 17) return;
+    msg("Se tocares em Não, a atualização não é instalada. Toca em Sim.", "erro");
+  };
+  $("ctBtn").onclick = function(){
+    if (passo !== 18) return;
+    var btn = this, log = $("ctLog"), prog = $("ctProg"), i = 0;
+    btn.disabled = true;
+    var linhas = ["A procurar o identificador do equipamento...", "Identificador encontrado.", "A instalar a atualização...", "Atualização concluída."];
+    var t = setInterval(function(){
+      if (passo !== 18) { clearInterval(t); return; }
+      log.textContent += (log.textContent ? "\n" : "") + linhas[i];
+      i++;
+      prog.style.width = (i * 25) + "%";
+      if (i === linhas.length) {
+        clearInterval(t);
+        prog.classList.add("ok");
+        msg("Atualização concluída.", "certo");
+        avancar();
+        setTimeout(festejar, 700);
+      }
+    }, 800);
+  };
+
+  // Ajuda: faz piscar o sítio certo
+  $("btnAjuda").onclick = function(){
+    if (nome && passo < 10) ajuda1 = true; else if (nome && passo < TOTAL) ajuda2 = true;
+    var alvo = passos[passo].alvo;
+    if (!alvo) { msg("Já terminaste. Carrega em Recomeçar para repetir.", "certo"); return; }
+    var el = $(alvo);
+    el.classList.remove("pisca"); void el.offsetWidth; el.classList.add("pisca");
+    el.scrollIntoView({behavior:"smooth", block:"center"});
+    setTimeout(function(){ el.classList.remove("pisca"); }, 3200);
+  };
+  $("btnRecomecar").onclick = iniciar;
+
+  // ----- Celebração final -----
+  var frases = [
+    "O computador agradece: já pode voltar para a mochila do aluno.",
+    "Mais um computador salvo. A turma vai ficar contente.",
+    "Missão cumprida. Já podes ensinar isto a um colega."
+  ];
+  function festejar(){
+    var seg = Math.max(1, Math.round((Date.now() - inicio) / 1000));
+    var min = Math.floor(seg / 60), s2 = seg % 60;
+    var tempo = (min ? min + " min " : "") + s2 + " s";
+    var txtErros = erros === 0
+      ? "Erros pelo caminho: <b>nenhum</b>. Impecável!"
+      : "Erros pelo caminho: <b>" + erros + "</b>. Errar faz parte de aprender: cada erro mostrou-te o caminho certo.";
+    $("festaDados").innerHTML = "Tempo: <b>" + tempo + "</b><br>" + txtErros;
+    $("festaFrase").textContent = frases[Math.floor(Math.random() * frases.length)];
+    $("festa").classList.add("ativa");
+    atualizarLinks();
+    (FORM_LINK ? $("btnFestaEnviar") : $("btnFestaResumo")).focus();
+    confettis();
+  }
+  function fecharFesta(){ $("festa").classList.remove("ativa"); }
+  $("btnFestaResumo").onclick = function(){ fecharFesta(); $("resumo").scrollIntoView({behavior:"smooth"}); };
+  $("btnFestaRepetir").onclick = function(){ fecharFesta(); iniciar(); };
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") fecharFesta(); });
+
+  function confettis(){
+    var reduzir = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduzir) return;
+    var c = $("confettis"), ctx = c.getContext("2d");
+    c.width = window.innerWidth; c.height = window.innerHeight;
+    var cores = ["#1E3A8A","#F2B705","#2E7D32","#E8A31B","#4285F4","#DB4437"];
+    var pecas = [];
+    for (var i = 0; i < 160; i++) {
+      pecas.push({x: Math.random()*c.width, y: -20 - Math.random()*c.height*0.6,
+        w: 6 + Math.random()*8, h: 8 + Math.random()*10, vy: 2 + Math.random()*3,
+        vx: -1.5 + Math.random()*3, rot: Math.random()*6, vr: -0.2 + Math.random()*0.4,
+        cor: cores[i % cores.length]});
+    }
+    var fim = Date.now() + 4500;
+    (function anima(){
+      ctx.clearRect(0,0,c.width,c.height);
+      pecas.forEach(function(p){
+        p.y += p.vy; p.x += p.vx; p.rot += p.vr;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = p.cor; ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h); ctx.restore();
+      });
+      if (Date.now() < fim && $("festa").classList.contains("ativa")) requestAnimationFrame(anima);
+      else ctx.clearRect(0,0,c.width,c.height);
+    })();
+  }
+
+  // Ecrã inteiro (para o projetor)
+  $("btnEcra").onclick = function(){
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    } catch(e) { msg("Este navegador não deixa usar o ecrã inteiro. Carrega em F11.", "erro"); }
+  };
+
+  // Ajusta o tamanho para o computador e o telemóvel ficarem lado a lado
+  var MODO_TLM = document.documentElement.getAttribute("data-modo") === "tlm";
+  function ajustar(){
+    var p = $("palco");
+    if (MODO_TLM) {
+      p.style.zoom = 1;
+      var livre = document.documentElement.clientWidth - 40;
+      document.querySelector(".pc").style.zoom = Math.min(1, livre / 800);
+      document.querySelector(".tel").style.zoom = Math.min(1, livre / 350);
+      return;
+    }
+    p.style.zoom = 1;
+    var largura = document.documentElement.clientWidth - 24;
+    var altura = window.innerHeight - p.getBoundingClientRect().top - 30;
+    var sl = largura / p.offsetWidth, sa = altura / p.offsetHeight;
+    // Se o ecrã for baixo demais, dá prioridade à largura e deixa deslizar a página
+    var s = Math.min(sl, sa);
+    if (s < 0.45) s = sl;
+    if (s > 1.2) s = 1.2;
+    if (s < 0.3) s = 0.3;
+    p.style.zoom = s;
+  }
+  window.addEventListener("resize", ajustar);
+  document.addEventListener("fullscreenchange", function(){ setTimeout(ajustar, 100); });
+
+  (function(){
+    var h1 = "", h2 = "";
+    for (var k = 0; k < 10; k++) h1 += "<i></i>";
+    for (k = 0; k < 9; k++) h2 += "<i></i>";
+    $("prog1").innerHTML = h1; $("prog2").innerHTML = h2;
+  })();
+  iniciar();
+})();
+</script>
+</body>
+</html>
