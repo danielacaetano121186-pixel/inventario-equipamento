@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resultados CUCo</title>
+<style>
+:root{
+  --fundo:#FBF7EE; --cartao:#FFFFFF; --texto:#1F2937; --cinza:#5B6472;
+  --azul:#1E3A8A; --azul2:#E8F0FB; --ambar:#E8A31B; --ambar2:#FDF1D6;
+  --verde:#2E7D32; --verde2:#E3F2E4; --linha:#E5DFD3;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--fundo);color:var(--texto);font-family:"Liberation Sans",Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+button{font:inherit;cursor:pointer}
+
+/* Cabeçalho */
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px max(20px,3vw);background:#FFF;border-bottom:1px solid var(--linha);position:relative}
+header::before{content:"";position:absolute;left:0;top:0;bottom:0;width:8px;background:var(--azul)}
+.logo{width:46px;height:46px;border-radius:12px;background:var(--azul);display:grid;place-items:center;flex:none}
+.marca{font-size:14px;font-weight:bold;color:var(--azul);margin:0}
+h1{margin:0;font-size:clamp(20px,2.4vw,32px)}
+.topo-dir{margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.vivo{display:flex;align-items:center;gap:8px;font-weight:bold;color:var(--cinza);font-size:15px;white-space:nowrap}
+.vivo i{width:12px;height:12px;border-radius:50%;background:var(--verde);animation:pulsa 1.6s infinite}
+@keyframes pulsa{50%{opacity:.25}}
+.contador{background:var(--azul);color:#FFF;border-radius:999px;padding:6px 14px;font-weight:bold;font-size:15px;white-space:nowrap}
+.btn-ecra{border:2px solid var(--azul);background:#FFF;color:var(--azul);border-radius:999px;padding:5px 14px;font-weight:bold;font-size:14px}
+.btn-ecra:focus-visible,.cartao:focus-visible,.nota:focus-visible{outline:3px solid var(--ambar);outline-offset:3px}
+
+main{flex:1;display:flex;flex-direction:column;gap:max(14px,1.6vw);padding:max(14px,1.6vw) max(20px,3vw)}
+
+/* Frase-resumo */
+.resumo{background:var(--azul);color:#FFF;border-radius:18px;padding:16px 24px;display:flex;align-items:center;gap:16px}
+.resumo .grande{font-size:clamp(22px,2.6vw,38px);font-weight:bold;line-height:1.2;margin:0;text-wrap:balance}
+.resumo .peq{margin:4px 0 0;font-size:clamp(14px,1.3vw,18px);color:#C7D2FE}
+
+/* Cartões que viram */
+.cartoes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:max(14px,1.6vw)}
+.cartao{perspective:1200px;border:none;background:none;padding:0;text-align:left;min-height:clamp(200px,22vw,260px)}
+.vira{position:relative;width:100%;height:100%;transition:transform .6s;transform-style:preserve-3d}
+.cartao.virado .vira{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:18px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;border:1px solid var(--linha);background:var(--cartao)}
+.face.tras{transform:rotateY(180deg);background:var(--azul2);border-color:#C9D7F2}
+.c2 .face.tras{background:var(--ambar2);border-color:#F2D79C}
+.c3 .face.tras{background:var(--verde2);border-color:#BFE0C1}
+.etq{display:flex;align-items:center;gap:10px;font-weight:bold;font-size:clamp(16px,1.5vw,21px)}
+.etq .ico{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--azul);color:#FFF}
+.c2 .etq .ico{background:var(--ambar);color:#3B2500}
+.c3 .etq .ico{background:var(--verde)}
+.numero{font-size:clamp(40px,4.6vw,68px);font-weight:bold;line-height:1;color:var(--azul)}
+.c2 .numero{color:#B06F00}.c3 .numero{color:var(--verde)}
+.numero small{font-size:.42em;color:var(--cinza);font-weight:bold}
+.pessoas{display:flex;flex-wrap:wrap;gap:4px;min-height:30px}
+.pessoa{width:clamp(22px,2.4vw,34px);height:clamp(22px,2.4vw,34px);animation:aparece .5s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes aparece{from{transform:scale(0)}to{transform:none}}
+.barra{height:12px;border-radius:6px;background:#EEE9DE;overflow:hidden;margin-top:auto}
+.barra i{display:block;height:100%;width:0;border-radius:6px;background:var(--azul);transition:width 1s ease}
+.c2 .barra i{background:var(--ambar)}.c3 .barra i{background:var(--verde)}
+.dica-virar{font-size:13px;color:var(--cinza)}
+.tras h3{margin:0;font-size:clamp(16px,1.5vw,21px)}
+.tras ol{margin:0;padding-left:22px;font-size:clamp(14px,1.3vw,18px);line-height:1.45}
+.tras p{margin:0;font-size:clamp(14px,1.3vw,18px);line-height:1.45}
+
+/* Sugestões */
+.sugestoes{background:var(--cartao);border:1px solid var(--linha);border-radius:18px;padding:16px 20px;display:flex;flex-direction:column;gap:10px;min-height:170px}
+.sugestoes h2{margin:0;font-size:clamp(17px,1.6vw,23px)}
+.sugestoes .sub{margin:0;color:var(--cinza);font-size:14px}
+#mural{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
+.nota{width:clamp(170px,17vw,240px);min-height:110px;border:none;padding:14px 14px 18px;font-size:clamp(14px,1.2vw,17px);line-height:1.35;text-align:left;color:#3B2F00;background:#FFF3B0;box-shadow:0 4px 10px rgba(31,41,55,.12);border-radius:4px;animation:cola .55s cubic-bezier(.2,1.4,.4,1) both;overflow:hidden;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical}
+.nota:nth-child(3n+2){background:#DCEBFF;transform:rotate(1.5deg)}
+.nota:nth-child(3n+3){background:#E3F2E4;transform:rotate(-1.2deg)}
+.nota:nth-child(3n+1){transform:rotate(-1.8deg)}
+@keyframes cola{from{opacity:0;transform:translateY(-14px) scale(.85)}}
+.vazio{color:var(--cinza);margin:6px 0}
+
+/* Nota ampliada */
+#zoom{position:fixed;inset:0;background:rgba(31,41,55,.55);display:none;place-items:center;padding:20px;z-index:30}
+#zoom.ativo{display:grid}
+#zoom div{max-width:720px;width:100%;background:#FFF3B0;color:#3B2F00;border-radius:6px;padding:30px 34px;font-size:clamp(20px,2.4vw,32px);line-height:1.4;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+
+/* Aviso de nova resposta */
+#aviso{position:fixed;left:50%;top:18px;transform:translate(-50%,-200%);opacity:0;background:var(--verde);color:#FFF;font-weight:bold;padding:10px 22px;border-radius:999px;font-size:18px;box-shadow:0 6px 18px rgba(0,0,0,.2);transition:transform .45s cubic-bezier(.2,1.4,.4,1);z-index:40}
+#aviso.mostra{transform:translate(-50%,0);opacity:1}
+#confettis{position:fixed;inset:0;pointer-events:none;z-index:35}
+
+footer{padding:6px max(20px,3vw) 12px;color:var(--cinza);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+@media (max-width:900px){.cartoes{grid-template-columns:1fr}.cartao{min-height:240px}}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden="true"><svg width="28" height="24" viewBox="0 0 26 22"><rect x="4" y="2" width="18" height="12" rx="1.5" fill="none" stroke="#FFF" stroke-width="2"/><path d="M1 18h24l-2 3H3z" fill="#FFF"/><path d="M10 8l2 2 4-4" fill="none" stroke="#E8A31B" stroke-width="2"/></svg></div>
+  <div><p class="marca">Gabinete Digital</p><h1>Como correu a prática?</h1></div>
+  <div class="topo-dir">
+    <span class="contador" id="contador">0 respostas</span>
+    <span class="vivo"><i></i><span id="vivoTxt">Ao vivo</span></span>
+    <button class="btn-ecra" id="btnEcra" type="button">Ecrã inteiro</button>
+  </div>
+</header>
+
+<main>
+  <section class="resumo" aria-live="polite">
+    <div>
+      <p class="grande" id="frase">À espera das primeiras respostas…</p>
+      <p class="peq" id="frase2">Quando acabar a prática, cada pessoa carrega em Enviar resultado.</p>
+    </div>
+  </section>
+
+  <section class="cartoes">
+    <button class="cartao c1" type="button" aria-label="Desbloquear: toque para ver os passos">
+      <div class="vira">
+        <div class="face frente">
+          <div class="etq"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M7 11V8a5 5 0 0 1 9.6-2" fill="none" stroke="#FFF" stroke-width="2.4" stroke-linecap="round"/><rect x="4" y="11" width="16" height="10" rx="2" fill="#FFF"/></svg></span>Desbloquearam o computador</div>
+          <div class="numero"><span id="n1">0</span> <small id="d1">de 0</small></div>
+          <div class="pessoas" id="p1"></div>
+          <div class="barra"><i id="b1"></i></div>
+          <span class="dica-virar">Toque para relembrar os passos</span>
+        </div>
+        <div class="face tras">
+          <h3>Lembre-se: desbloquear</h3>
+          <ol><li>No telemóvel, pesquise <b>cuco ucode</b>.</li><li>Escreva o n.º de série da <b>etiqueta (SN)</b>.</li><li>Copie o <b>CT</b> e o <b>UC</b> do ecrã azul.</li><li>Escreva o código no computador.</li></ol>
+        </div>
+      </div>
+    </button>
+
+    <button class="cartao c2" type="button" aria-label="Atualizar: toque para ver os passos">
+      <div class="vira">
+        <div class="face frente">
+          <div class="etq"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="#3B2500" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Atualizaram o sistema</div>
+          <div class="numero"><span id="n2">0</span> <small id="d2">de 0</small></div>
+          <div class="pessoas" id="p2"></div>
+          <div class="barra"><i id="b2"></i></div>
+          <span class="dica-virar">Toque para relembrar os passos</span>
+        </div>
+        <div class="face tras">
+          <h3>Lembre-se: atualizar</h3>
+          <ol><li>Pesquise <b>desbloqueio cuco update</b>.</li><li>Toque em <b>Descarregar</b>.</li><li>Abra o <b>CtoolGui</b> e toque em <b>Sim</b>.</li><li>Toque em <b>Iniciar Atualização</b>.</li></ol>
+        </div>
+      </div>
+    </button>
+
+    <button class="cartao c3" type="button" aria-label="Gostaram da formação: toque para virar">
+      <div class="vira">
+        <div class="face frente">
+          <div class="etq"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="#FFF"/></svg></span>Gostaram da formação</div>
+          <div class="numero"><span id="n3">0</span> <small id="d3">de 0</small></div>
+          <div class="pessoas" id="p3"></div>
+          <div class="barra"><i id="b3"></i></div>
+          <span class="dica-virar">Toque para virar</span>
+        </div>
+        <div class="face tras">
+          <h3>Obrigada!</h3>
+          <p>Agora já sabem resolver o bloqueio em casa, em poucos minutos.</p>
+          <p>Levem o <b>manual</b>: o guia rápido está na última página.</p>
+        </div>
+      </div>
+    </button>
+  </section>
+
+  <section class="sugestoes">
+    <h2>Sugestões</h2>
+    <p class="sub">Toque numa nota para a ler em grande.</p>
+    <div id="mural"><p class="vazio">As sugestões vão aparecer aqui.</p></div>
+  </section>
+</main>
+
+<footer><span>Simulação Pedagógica Final · Desbloquear e atualizar o computador do Kit Digital</span><span id="atual"></span></footer>
+
+<div id="aviso" role="status">Nova resposta!</div>
+<div id="zoom" role="dialog" aria-modal="true" tabindex="-1"><div id="zoomTxt"></div></div>
+<canvas id="confettis"></canvas>
+
+<script>
+(function(){
+  // Folha do Google Sheets ligada ao formulário (partilhada só para leitura).
+  var SHEET_ID = "1eKAD7u6LszkcbgGK2ekFjCrkqZ3o6l7WvZ9XmgnLC0k";
+  var CADA = 4000;
+  var DEMO = /[?&]demo\b/.test(location.search);
+
+  function $(id){ return document.getElementById(id); }
+  var ultimoTotal = -1, sugestoesVistas = {};
+
+  var CORES = {p1:"#1E3A8A", p2:"#E8A31B", p3:"#2E7D32"};
+  function boneco(cheio, cor, atraso){
+    var ns = "http://www.w3.org/2000/svg";
+    var s = document.createElementNS(ns, "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", "pessoa");
+    s.style.animationDelay = atraso + "ms";
+    var c = document.createElementNS(ns, "circle");
+    c.setAttribute("cx", "12"); c.setAttribute("cy", "7"); c.setAttribute("r", "4.2");
+    var p = document.createElementNS(ns, "path");
+    p.setAttribute("d", "M3.5 22c0-5 3.8-8.2 8.5-8.2s8.5 3.2 8.5 8.2z");
+    [c, p].forEach(function(e){
+      e.setAttribute("fill", cheio ? cor : "none");
+      e.setAttribute("stroke", cheio ? cor : "#C9C2B3");
+      e.setAttribute("stroke-width", "1.6");
+      s.appendChild(e);
+    });
+    return s;
+  }
+
+  function bloco(i, sim, total, novo){
+    $("n" + i).textContent = sim;
+    $("d" + i).textContent = "de " + total;
+    $("b" + i).style.width = (total ? Math.round(sim / total * 100) : 0) + "%";
+    var caixa = $("p" + i);
+    caixa.innerHTML = "";
+    for (var k = 0; k < total; k++) caixa.appendChild(boneco(k < sim, CORES["p" + i], novo ? k * 40 : 0));
+    if (!novo) Array.prototype.forEach.call(caixa.children, function(e){ e.style.animation = "none"; });
+  }
+
+  function frase(d, a, total){
+    if (!total) return ["À espera das primeiras respostas…", "Quando acabar a prática, cada pessoa carrega em Enviar resultado."];
+    var ambos = Math.min(d, a);
+    if (d === total && a === total) return [total === 1 ? "A primeira pessoa já desbloqueia e atualiza sozinha!" : "Todos já sabem desbloquear e atualizar sozinhos!", "Agora o computador do Kit Digital já não precisa de ir à escola."];
+    var p = Math.round(d / total * 100);
+    return [d + " em " + total + " já desbloqueiam o computador sozinhos", "E " + a + " já fizeram também a atualização, para não voltar a bloquear."];
+  }
+
+  function desenha(linhas){
+    var total = linhas.length, d = 0, a = 0, g = 0, novo = total !== ultimoTotal;
+    linhas.forEach(function(l){
+      if (/consegui/i.test(l.d)) d++;
+      if (/consegui/i.test(l.a)) a++;
+      if (/^\s*sim/i.test(l.g)) g++;
+    });
+    $("contador").textContent = total + (total === 1 ? " resposta" : " respostas");
+    bloco(1, d, total, novo); bloco(2, a, total, novo); bloco(3, g, total, novo);
+    var f = frase(d, a, total); $("frase").textContent = f[0]; $("frase2").textContent = f[1];
+
+    // Sugestões (mais recentes primeiro)
+    var sug = linhas.map(function(l){ return String(l.s || "").trim(); }).filter(Boolean).reverse();
+    var mural = $("mural");
+    if (!sug.length) { mural.innerHTML = '<p class="vazio">As sugestões vão aparecer aqui.</p>'; }
+    else {
+      mural.innerHTML = "";
+      sug.slice(0, 12).forEach(function(t){
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "nota"; b.textContent = t;
+        if (sugestoesVistas[t]) b.style.animation = "none";
+        sugestoesVistas[t] = true;
+        b.onclick = function(){ $("zoomTxt").textContent = t; $("zoom").classList.add("ativo"); $("zoom").focus(); };
+        mural.appendChild(b);
+      });
+    }
+
+    if (ultimoTotal >= 0 && total > ultimoTotal) {
+      var av = $("aviso");
+      av.textContent = (total - ultimoTotal === 1) ? "Nova resposta!" : ("+" + (total - ultimoTotal) + " respostas!");
+      av.classList.add("mostra"); setTimeout(function(){ av.classList.remove("mostra"); }, 2200);
+      confettis();
+    }
+    ultimoTotal = total;
+  }
+
+  // Interações
+  Array.prototype.forEach.call(document.querySelectorAll(".cartao"), function(c){
+    c.addEventListener("click", function(){ c.classList.toggle("virado"); });
+  });
+  $("zoom").addEventListener("click", function(){ $("zoom").classList.remove("ativo"); });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") $("zoom").classList.remove("ativo"); });
+  $("btnEcra").onclick = function(){
+    try { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } catch (e) {}
+  };
+
+  // Confetis curtos
+  function confettis(){
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var cv = $("confettis"), cx = cv.getContext("2d");
+    cv.width = innerWidth; cv.height = innerHeight;
+    var cores = ["#1E3A8A","#E8A31B","#2E7D32","#BE185D","#0E7490"], ps = [];
+    for (var i = 0; i < 90; i++) ps.push({x: innerWidth / 2 + (Math.random() - .5) * 200, y: 60, vx: (Math.random() - .5) * 12, vy: Math.random() * -6 - 2, r: Math.random() * 6 + 4, c: cores[i % cores.length], a: Math.random() * 6});
+    var t = 0;
+    (function anima(){
+      cx.clearRect(0, 0, cv.width, cv.height);
+      ps.forEach(function(p){ p.vy += .25; p.x += p.vx; p.y += p.vy; p.a += .2; cx.save(); cx.translate(p.x, p.y); cx.rotate(p.a); cx.fillStyle = p.c; cx.fillRect(-p.r/2, -p.r/4, p.r, p.r/2); cx.restore(); });
+      if (++t < 110) requestAnimationFrame(anima); else cx.clearRect(0, 0, cv.width, cv.height);
+    })();
+  }
+
+  function hora(){ var d = new Date(), p = function(n){ return (n < 10 ? "0" : "") + n; }; return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()); }
+
+  // Leitura da folha (JSONP)
+  window.__resultadosCUCo = function(resp){
+    try {
+      var cols = resp.table.cols.map(function(c){ return (c.label || "").toLowerCase(); });
+      function idx(re){ for (var i = 0; i < cols.length; i++) if (re.test(cols[i])) return i; return -1; }
+      var iG = idx(/gost/), iD = idx(/desbloq/), iA = idx(/atualiza/), iS = idx(/sugest|coment|opini/);
+      var linhas = (resp.table.rows || []).map(function(r){
+        function v(i){ return i < 0 || !r.c[i] || r.c[i].v == null ? "" : r.c[i].v; }
+        return {g: v(iG), d: v(iD), a: v(iA), s: v(iS)};
+      }).filter(function(l){ return l.g || l.d || l.a || l.s; });
+      desenha(linhas);
+      $("vivoTxt").textContent = "Ao vivo";
+      $("atual").textContent = "Atualizado às " + hora();
+    } catch (e) { $("vivoTxt").textContent = "A ligar…"; }
+  };
+  var pedido = 0;
+  function buscar(){
+    var s = document.createElement("script");
+    s.src = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=responseHandler:__resultadosCUCo;reqId:" + (pedido++) + "&headers=1&_=" + Date.now();
+    s.onload = function(){ s.remove(); };
+    s.onerror = function(){ $("vivoTxt").textContent = "A ligar…"; s.remove(); };
+    document.body.appendChild(s);
+  }
+
+  if (DEMO) {
+    var ex = [
+      {g:"Sim", d:"Consegui", a:"Consegui", s:"Muito útil, vou fazer em casa com o meu filho."},
+      {g:"Sim", d:"Consegui", a:"Consegui", s:""},
+      {g:"Sim", d:"Consegui", a:"Tenho de treinar mais", s:"Gostava de ter o manual também em papel."},
+      {g:"Sim", d:"Consegui", a:"Consegui", s:"Explicação clara e com calma."},
+      {g:"Sim", d:"Tenho de treinar mais", a:"Tenho de treinar mais", s:""},
+      {g:"Sim", d:"Consegui", a:"Consegui", s:"Fazer mais sessões destas!"}
+    ];
+    var n = 0; $("vivoTxt").textContent = "Exemplo"; $("atual").textContent = "Dados de exemplo";
+    (function passo(){ n++; desenha(ex.slice(0, n)); if (n < ex.length) setTimeout(passo, 1600); })();
+  } else {
+    buscar(); setInterval(buscar, CADA);
+  }
+})();
+</script>
+</body>
+</html>
