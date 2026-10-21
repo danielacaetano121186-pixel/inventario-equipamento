@@ -4,20 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data:; worker-src blob: 'self'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob: mediastream:; connect-src blob: data:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data:; worker-src 'self' blob:; manifest-src 'self'; style-src 'unsafe-inline'; img-src 'self' blob: data:; media-src blob: mediastream:; connect-src blob: data:">
 <title>Inventário de equipamento</title>
-<script>window.MODO_SITE=true;</script>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Inventário">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1E3A8A">
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 13 (21/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 15 (21/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
     - Tesseract.js 5.1.1 e tesseract.js-core 5.1.1 (lstm), licença Apache 2.0, com dados eng 4.0.0_best_int (ler o número escrito)
     - qrcode-generator versão 1.4.4, licença MIT (criar os códigos QR dos locais)
     - SheetJS (xlsx) versão 0.18.5, licença Apache 2.0 (ler e escrever Excel)
-  Não faz nenhum pedido de rede próprio. O registo fica no aparelho (localStorage) e, na página do claude.ai, também na parte privada da conta (capacidade db).
+  Não faz nenhum pedido de rede próprio. O registo fica só no aparelho (localStorage).
+  O sw.js guarda uma cópia da página no iPhone, para funcionar sem rede.
 -->
 <style>
   :root { color-scheme:light; --fundo:#FBF7EE; --texto:#1F2937; --azul:#1E3A8A; --azulclaro:#E8F0FB; --laranja:#9A4A00; --laranjaclaro:#FDF0E2; --erro:#8B1C1C; --linha:#D6CFBF; }
@@ -42,10 +49,12 @@
   .escolhas button.sel { background:var(--azul); color:#fff; font-weight:bold; }
   .escolhas button.sel::before { content:"✓ "; }
   .caixa { background:var(--azulclaro); border-left:6px solid var(--azul); padding:12px 16px; font-weight:bold; margin:12px 0; border:1px solid #b9c8e6; border-left-width:6px; }
-  .resumo { display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center; background:#fff; border:2px solid var(--azul); border-radius:8px; padding:10px 14px; margin:8px 0 12px; }
+  .resumo { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; background:#fff; border:2px solid var(--azul); border-radius:8px; padding:10px 14px; margin:8px 0 12px; }
   .resumo span b { color:var(--azul); }
   #video-wrap { position:relative; width:100%; background:#000; border-radius:8px; overflow:hidden; display:none; }
-  video { width:100%; display:block; max-height:60vh; object-fit:contain; background:#000; }
+  /* A imagem enche a largura e fica com altura fixa, para o resultado aparecer logo por baixo sem fazer scroll */
+  video { width:100%; height:42vh; min-height:220px; display:block; object-fit:cover; background:#000; }
+  #video-wrap { margin-bottom:8px; }
   #mira { position:absolute; left:10%; right:10%; top:25%; bottom:25%; border:4px solid #fff; box-shadow:0 0 0 2px var(--azul); border-radius:6px; pointer-events:none; }
   .linha-form { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
   input[type=text], select { font-family:inherit; font-size:19px; min-height:52px; padding:6px 10px; border:2px solid #8a8272; border-radius:8px; background:#fff; color:var(--texto); }
@@ -70,12 +79,11 @@
   .escondido { display:none !important; }
   .nota { font-size:16px; }
   ol.passos li { margin-bottom:6px; }
-  .texto-linhas { padding-left:28px; }
-  .texto-linhas li { margin-bottom:14px; }
-  .texto-linha { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; }
-  .texto-linha .linha-toda { font-family:Arial, sans-serif; font-size:22px; text-align:left; word-break:break-all; }
-  .texto-palavras { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-  .texto-palavras .palavra { font-family:Arial, sans-serif; margin:0; }
+  .campo-r { display:flex; flex-direction:column; flex:1 1 140px; min-width:0; font-size:16px; }
+  .campo-r select { font-size:18px; min-height:48px; font-weight:bold; width:100%; }
+  .resumo #btn-mudar { align-self:flex-end; }
+  .lista-ref { border-top:1px solid var(--linha); margin-top:16px; padding-top:8px; }
+  .aluno { font-weight:bold; }
   .aviso-geral { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; border:2px solid var(--laranja); background:var(--laranjaclaro); border-radius:8px; padding:8px 14px; margin:8px 0; font-weight:bold; }
   .aviso-geral.ok { border-color:var(--azul); background:var(--azulclaro); }
   .aviso-geral.erro { border-color:var(--erro); }
@@ -85,7 +93,7 @@
     @page { size:A4; margin:12mm; }
     body { background:#fff; font-size:11pt; }
     main { max-width:none; padding:0; }
-    nav, button, .linha-form, .sem-impressao, #sec-ler, #sec-comparar, .resumo, details, select, input { display:none !important; }
+    nav, button, .linha-form, .sem-impressao, #sec-ler, .resumo, details, select, input { display:none !important; }
     #sec-lista { display:block !important; }
     .grupo-local { break-before:page; }
     .grupo-local:first-child { break-before:auto; }
@@ -98,12 +106,12 @@
   textarea { width:100%; font-family:inherit; font-size:18px; line-height:1.5; padding:8px 10px; border:2px solid #8a8272; border-radius:8px; background:#fff; color:var(--texto); }
   input[type=number] { width:84px; font-family:inherit; font-size:19px; min-height:52px; padding:6px 8px; border:2px solid #8a8272; border-radius:8px; background:#fff; }
   .linha-form label { align-self:center; }
-  #r-cont { font-weight:bold; color:var(--azul); }
+  #r-cont { font-weight:bold; color:var(--azul); margin:4px 0 8px; }
   #flash { position:fixed; top:0; right:0; bottom:0; left:0; pointer-events:none; border:16px solid transparent; z-index:50; opacity:0; }
   #flash.ok { border-color:var(--azul); animation:piscar .5s ease-out; }
+  #flash.rep { border-color:#7A8CC0; animation:piscar .5s ease-out; }
   #flash.aviso { border-color:#E07B00; animation:piscar .8s ease-out; }
   @keyframes piscar { 0% { opacity:1; } 100% { opacity:0; } }
-  .extra { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0; }
   #folha-qr { display:none; }
   @media print {
     body.imprimir-qr main, body.imprimir-qr #flash { display:none !important; }
@@ -114,20 +122,30 @@
 </style>
 <main>
 <h1>Inventário de equipamento</h1>
-<p class="nota sem-impressao">Os dados ficam só neste aparelho. Se limpar os dados do navegador, o registo apaga-se. Exporte para Excel no fim de cada dia.</p>
-<div id="aviso-copia" class="aviso-geral sem-impressao" hidden></div>
+<p class="nota sem-impressao">Os dados ficam só neste telemóvel. Exporte para Excel no fim de cada dia.</p>
+<p id="offline-estado" class="nota sem-impressao"></p>
+<div id="instalar" class="caixa sem-impressao" hidden></div>
 
 <div id="aviso-geral" class="aviso-geral" hidden role="alert"></div>
+<div id="lembrete" class="aviso-geral sem-impressao" hidden role="status"></div>
 
 <nav>
   <button data-sec="ler" class="ativo">1. Ler</button>
   <button data-sec="lista">2. Lista</button>
-  <button data-sec="comparar">3. Comparar</button>
 </nav>
 
 <!-- ========== 1. LER ========== -->
 <section id="sec-ler">
   <div id="perguntas">
+    <div id="ajuda" class="caixa" hidden>
+      <p style="margin:0 0 6px">Como usar</p>
+      <ol style="margin:0 0 10px; padding-left:28px; font-weight:normal">
+        <li>Escolha onde está e o estado. A ferramenta sabe sozinha se é PC ou hotspot.</li>
+        <li>Toque em "Começar a ler". A câmara liga sozinha: aponte às etiquetas, uma atrás da outra. Pode mudar o local e o estado a meio, no topo do ecrã.</li>
+        <li>No fim do dia, exporte para Excel no separador "2. Lista".</li>
+      </ol>
+      <button class="pequeno" id="btn-ajuda-ok">Já percebi</button>
+    </div>
     <h2>Onde está?</h2>
     <div class="escolhas" id="esc-local"></div>
     <div class="linha-form">
@@ -144,31 +162,27 @@
     </div>
     <p id="msg-estado" role="status"></p>
 
-    <h2>O que vai ler?</h2>
-    <div class="escolhas" id="esc-tipo"></div>
-
     <p id="falta" class="aviso-t"></p>
     <button class="principal" id="btn-comecar" style="width:100%; min-height:64px; font-size:22px;">Começar a ler</button>
 
     <details>
       <summary>Números de série dos PC</summary>
-      <p>Quando lê PC, a ferramenta só aceita códigos que começam por estes inícios. Os outros códigos da etiqueta são ignorados.</p>
-      <p class="nota">Separe com vírgulas.</p>
+      <p>Um código que começa por um destes inícios fica registado como PC. Os outros ficam como hotspot (veja "Números de série dos hotspots").</p>
+      <p>Se a câmara acabou de ler um PC, os outros códigos da mesma etiqueta (modelo, MAC…) são ignorados durante 4 segundos.</p>
+      <p class="nota">Separe com vírgulas. Ficam guardados só neste telemóvel e vão no Excel exportado. Se ficar vazio, tudo fica como hotspot.</p>
       <div class="linha-form">
         <input type="text" id="inicios-pc" autocomplete="off" spellcheck="false">
         <button id="btn-inicios">Guardar</button>
-        <button id="btn-inicios-repor">Repor</button>
       </div>
       <p id="inicios-msg" class="ok-t"></p>
     </details>
-    <details id="det-hs" hidden>
+    <details>
       <summary>Números de série dos hotspots</summary>
-      <p>Os códigos que começam por estes inícios ficam registados como hotspot. Os códigos que não começam pelos inícios dos PC nem dos hotspots pedem confirmação antes de serem registados.</p>
-      <p class="nota">Separe com vírgulas.</p>
+      <p>Um código que começa por um destes inícios fica registado como hotspot sem perguntar. Um código que não começa pelos inícios dos PC nem dos hotspots pede confirmação. Um código que começa por 1 pede sempre confirmação, porque normalmente não é o n.º de série.</p>
+      <p class="nota">Separe com vírgulas. Ficam guardados só neste telemóvel e vão no Excel exportado. Se ficar vazio, só os códigos que começam por 1 pedem confirmação.</p>
       <div class="linha-form">
         <input type="text" id="inicios-hs" autocomplete="off" spellcheck="false">
         <button id="btn-inicios-hs">Guardar</button>
-        <button id="btn-inicios-hs-repor">Repor</button>
       </div>
       <p id="inicios-hs-msg" class="ok-t"></p>
     </details>
@@ -188,41 +202,55 @@
       <button class="principal" id="btn-qr-imprimir">Imprimir os códigos QR</button>
       <p class="nota">Sai em folhas A4 normais, 15 por folha. No iPhone: Partilhar → Imprimir. Recorte e cole com fita-cola. Imprima primeiro uma folha para testar.</p>
     </details>
-    <details id="det-extras">
+    <details>
       <summary>Apagar locais ou estados acrescentados</summary>
-      <p>Os equipamentos já lidos ficam com o local e o estado que tinham.</p>
-      <div id="lista-extras"></div>
+      <p>Os equipamentos já lidos ficam como estão. Só sai da lista de escolhas.</p>
+      <div id="gerir-extras"></div>
     </details>
+    <p><button class="pequeno" id="btn-ajuda">Como usar</button></p>
   </div>
 
   <div id="leitura" class="escondido">
     <div class="resumo">
-      <span>Local: <b id="r-local"></b></span>
-      <span>Estado: <b id="r-estado"></b></span>
-      <span>A ler: <b id="r-tipo"></b></span>
-      <span id="r-cont"></span>
-      <button class="pequeno" id="btn-mudar">Mudar</button>
+      <label class="campo-r">Local <select id="r-local"></select></label>
+      <label class="campo-r">Estado <select id="r-estado"></select></label>
+      <button class="pequeno" id="btn-mudar">Voltar</button>
     </div>
+    <p id="r-cont"></p>
+    <div id="r-novo" class="linha-form escondido">
+      <input type="text" id="r-novo-txt" maxlength="40">
+      <button class="pequeno principal" id="r-novo-ok">Acrescentar</button>
+      <button class="pequeno" id="r-novo-nao">Cancelar</button>
+    </div>
+    <p id="r-msg" role="status"></p>
+
+    <div id="video-wrap"><video id="video" playsinline muted></video></div>
+    <div id="ultimo"></div>
 
     <div class="linha-form">
       <button class="principal" id="btn-camara">Ligar a câmara</button>
       <button id="btn-foto">Tirar fotografia</button>
-      <button id="btn-ler-tudo">Ler todo o texto</button>
       <input type="file" id="ficheiro-foto" accept="image/*" capture="environment" class="escondido">
       <span id="estado-camara" class="nota"></span>
     </div>
-    <p class="nota sem-impressao" id="dicas-camara">As barras têm de aparecer inteiras e focadas, em qualquer parte da imagem e em qualquer posição. Pode ler várias etiquetas de uma vez, se todas estiverem nítidas. Se a imagem estiver desfocada, afaste um pouco o tablet ou toque nela. Se a câmara não ler, use "Tirar fotografia" ou "Ler todo o texto".</p>
-    <div id="video-wrap"><video id="video" playsinline muted></video></div>
-    <p id="info-camara" class="nota"></p>
     <div id="zoom-wrap" class="linha-form escondido"><label for="zoom">Zoom:</label> <input type="range" id="zoom" style="flex:1 1 200px; min-height:44px"></div>
 
     <div class="linha-form">
       <input type="text" id="manual" placeholder="Ou escreva o n.º de série" autocomplete="off" autocapitalize="characters" spellcheck="false">
       <button id="btn-manual">Adicionar</button>
     </div>
+    <p class="nota sem-impressao" id="dicas-camara">Aponte para o código de barras por baixo de "S/N". Pode ler várias etiquetas de uma vez, se todas estiverem nítidas. Se a imagem estiver desfocada, afaste um pouco o aparelho ou toque nela. Se a câmara não ler, use "Tirar fotografia".</p>
+    <p id="info-camara" class="nota"></p>
 
-    <div id="ultimo"></div>
-    <div id="leitura-total"></div>
+    <div class="lista-ref sem-impressao">
+      <p id="ref-estado" class="nota"></p>
+      <div class="linha-form">
+        <button class="pequeno" id="btn-ref-carregar">Carregar lista de equipamento</button>
+        <button class="pequeno perigo escondido" id="btn-ref-retirar">Retirar lista</button>
+        <input type="file" id="ficheiro-eq" accept=".xlsx,.xls,.csv" multiple class="escondido">
+      </div>
+      <div id="lista-ficheiros"></div>
+    </div>
 
     <p>Lidos nesta sessão: <b id="n-sessao">0</b>. Total no registo: <b id="n-total">0</b>.</p>
     <ol id="lista-sessao" class="nota"></ol>
@@ -257,26 +285,7 @@
   </details>
 </section>
 
-<!-- ========== 3. COMPARAR ========== -->
-<section id="sec-comparar" class="escondido">
-  <h2>Comparar com o equipamento atribuído</h2>
-  <ol class="passos">
-    <li>Carregue um ou mais ficheiros de equipamento (um por fase).</li>
-    <li>Confirme as colunas de cada ficheiro.</li>
-    <li>Toque em "Comparar".</li>
-  </ol>
-  <div class="linha-form">
-    <button class="principal" id="btn-carregar-eq">Carregar ficheiros de equipamento</button>
-    <input type="file" id="ficheiro-eq" accept=".xlsx,.xls,.csv" multiple class="escondido">
-  </div>
-  <div id="lista-ficheiros"></div>
-  <div class="linha-form">
-    <button class="principal" id="btn-comparar" disabled>Comparar</button>
-    <button class="perigo" id="btn-limpar-eq" disabled>Retirar ficheiros</button>
-  </div>
-  <div id="resultado-comp"></div>
-</section>
-<p class="nota sem-impressao" id="versao"></p>
+<p class="nota sem-impressao" id="versao">Versão 15 (21/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
@@ -2911,14 +2920,14 @@ var qrcode = function() {
   'use strict';
 
   // ---------- Configuração ----------
-  var LOCAIS_BASE = ['Sala C7', 'Arrecadação A2', 'Arrecadação C6', 'Gabinete digital'];
+  // Os locais não ficam no código (o site é público): são acrescentados no telemóvel e guardados só lá.
+  var LOCAIS_BASE = [];
   var ESTADOS = ['Com auto assinado', 'Sem auto assinado', 'Com aluno', 'Não sei o estado'];
-  var TIPOS = ['PC', 'Hotspot'];
+  var TIPOS = ['PC', 'Hotspot']; // decidido pelo n.º de série (ver tipoDe)
   var CHAVE = 'inventario_equipamento_v1';
-  var INICIOS_PC = ['GW1W149', 'GW1W148', '22SF', '96XC', '96XD', '4032'];
+  // Os inícios dos n.º de série não ficam no código (o site é público): escrevem-se no telemóvel.
+  var INICIOS_PC = [];
   var VERSAO_INICIOS = 3;
-  var INICIOS_HS = ['8026'];
-  var VERSAO_FERRAMENTA = '13 (21/10/2026)';
 
   // ---------- Utilitários ----------
   function $(id) { return document.getElementById(id); }
@@ -2934,14 +2943,6 @@ var qrcode = function() {
   function dataTxt(iso) { var d = new Date(iso); return dois(d.getDate()) + '/' + dois(d.getMonth() + 1) + '/' + d.getFullYear(); }
   function horaTxt(iso) { var d = new Date(iso); return dois(d.getHours()) + ':' + dois(d.getMinutes()); }
 
-  // Página no claude.ai (iPhone): sem câmara ao vivo, sem diálogos do navegador, Excel pela capacidade "downloads"
-  var MODO_PAGINA = !!window.MODO_PAGINA;
-  // Site do iPhone: sem "Comparar"; o tipo decide-se pelo n.º de série (inícios dos PC = PC, o resto = hotspot)
-  var MODO_SITE = !!window.MODO_SITE;
-  function tipoDe(serie) {
-    if (!dados.iniciosPC.length) return 'PC';
-    return dados.iniciosPC.some(function (i) { return serie.indexOf(norm(i)) === 0; }) ? 'PC' : 'Hotspot';
-  }
 
   // Avisos dentro da página (os diálogos alert/confirm não funcionam em todo o lado)
   function avisar(texto, tipo) {
@@ -2954,160 +2955,73 @@ var qrcode = function() {
     try { c.scrollIntoView({ block: 'nearest' }); } catch (e) {}
   }
 
+  // Aviso com botão "Desfazer". O botão funciona até fechar o aviso ou aparecer outro.
+  function avisarDesfazer(texto, desfazer) {
+    var c = $('aviso-geral');
+    c.className = 'aviso-geral ok';
+    c.innerHTML = '<p>' + esc(texto) + '</p><button class="pequeno principal" id="aviso-desfazer">Desfazer</button><button class="pequeno" id="aviso-fechar">Fechar</button>';
+    c.hidden = false;
+    $('aviso-fechar').addEventListener('click', function () { c.hidden = true; });
+    $('aviso-desfazer').addEventListener('click', function () {
+      desfazer();
+      guardar();
+      atualizarContagens();
+      if (!$('sec-lista').classList.contains('escondido')) desenharLista();
+      avisar('✓ Desfeito.', 'ok');
+    });
+    try { c.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+  }
+
   window.addEventListener('error', function (ev) { avisar('✗ Erro na página: ' + (ev && ev.message || 'desconhecido') + '. Envie uma captura deste aviso.', 'erro'); });
 
   // ---------- Dados guardados ----------
-  // No tablet: só no aparelho (localStorage).
-  // No iPhone (página do claude.ai): também na conta Claude da Daniela (capacidade "db", parte privada),
-  // porque o iPhone pode apagar os dados da página quando se fecha.
-  var dados = { itens: [], locaisExtra: [], estadosExtra: [], iniciosPC: INICIOS_PC.slice(), iniciosHS: INICIOS_HS.slice(), versaoInicios: VERSAO_INICIOS, atualizado: 0 };
+  // Só neste aparelho (localStorage). Nada sai do telemóvel.
+  // mudancas, primeiraMudanca e exportado servem o lembrete da cópia em Excel
+  var dados = { itens: [], locaisExtra: [], estadosExtra: [], iniciosPC: INICIOS_PC.slice(), iniciosHS: [], versaoInicios: VERSAO_INICIOS, atualizado: 0, mudancas: 0, primeiraMudanca: 0, exportado: 0 };
   function aplicar(o) {
     dados.itens = Array.isArray(o.itens) ? o.itens : [];
     dados.locaisExtra = Array.isArray(o.locaisExtra) ? o.locaisExtra : [];
     dados.estadosExtra = Array.isArray(o.estadosExtra) ? o.estadosExtra : [];
     if (Array.isArray(o.iniciosPC)) dados.iniciosPC = o.iniciosPC;
-    dados.iniciosHS = Array.isArray(o.iniciosHS) ? o.iniciosHS : INICIOS_HS.slice();
+    dados.iniciosHS = Array.isArray(o.iniciosHS) ? o.iniciosHS : [];
     // Inícios novos que entraram numa versão posterior da ferramenta
     if ((o.versaoInicios || 1) < VERSAO_INICIOS) {
       INICIOS_PC.forEach(function (i) { if (dados.iniciosPC.indexOf(i) < 0) dados.iniciosPC.push(i); });
     }
     dados.versaoInicios = VERSAO_INICIOS;
+    dados.itens.forEach(function (it) { if (it.local && dados.locaisExtra.indexOf(it.local) < 0) dados.locaisExtra.push(it.local); });
     dados.atualizado = o.atualizado || 0;
-    dados.ultimaExportacao = o.ultimaExportacao || 0;
+    dados.exportado = o.exportado || 0;
+    if (typeof o.mudancas === 'number') { dados.mudancas = o.mudancas; dados.primeiraMudanca = o.primeiraMudanca || 0; }
+    else {
+      // Registo de uma versão anterior: não se sabe se já foi exportado, por isso pede uma cópia
+      dados.mudancas = dados.itens.length;
+      dados.primeiraMudanca = dados.itens.length ? 1 : 0;
+    }
   }
   function carregar() {
     try {
       var t = localStorage.getItem(CHAVE);
       if (t) aplicar(JSON.parse(t));
     } catch (e) {
-      if (!MODO_PAGINA) avisar('! Não consegui abrir o registo guardado neste aparelho. Se tiver uma exportação em Excel, importe-a no separador 2.');
+      avisar('! Não consegui abrir o registo guardado neste aparelho. Se tiver uma exportação em Excel, importe-a no separador 2.');
     }
   }
-  function guardar() {
+  function guardar(semContar) {
+    try { if (window.__inst) window.__inst(); } catch (e) {}
     dados.atualizado = Date.now();
+    if (!semContar) {
+      dados.mudancas = (dados.mudancas || 0) + 1;
+      if (!dados.primeiraMudanca) dados.primeiraMudanca = Date.now();
+    }
+    try { desenharLembrete(); } catch (e) {}
     var ok = true;
     try { localStorage.setItem(CHAVE, JSON.stringify(dados)); }
     catch (e) { ok = false; }
-    if (MODO_PAGINA && nuvem.db && !nuvem.lendo) {
-      try { guardarNuvem(); }
-      catch (e) { nuvem.aEscrever = false; estadoNuvem('✗ Não consegui guardar na conta Claude (' + (e && e.message || e) + '). Exporte para Excel antes de fechar.', 'erro-t'); }
-      return true;
-    }
-    if (MODO_PAGINA) nuvem.mudouAntes = true;
     if (!ok) avisar('✗ Não consegui guardar o registo. Exporte já para Excel para não perder dados.', 'erro');
     return ok;
   }
 
-  // ---- Conta Claude (só na página do iPhone) ----
-  // O registo vai em partes de 600 linhas (cada documento tem limite de tamanho).
-  // Uma escrita de cada vez; se houver mudanças durante uma escrita, escreve outra vez no fim.
-  var PARTE = 600;
-  var nuvem = { db: null, uid: null, aEscrever: false, pendente: false, escrito: {}, falhou: false };
-  function estadoNuvem(txt, classe) {
-    var e = $('estado-nuvem');
-    if (e) { e.textContent = txt; e.className = 'nota ' + (classe || ''); }
-  }
-  function refNuvem(nome) { return nuvem.db.doc('data/users/' + nuvem.uid + '/' + nome); }
-  function guardarNuvem() {
-    if (nuvem.aEscrever) { nuvem.pendente = true; return; }
-    nuvem.aEscrever = true; nuvem.pendente = false;
-    estadoNuvem('A guardar na conta Claude…');
-    var partes = [], i;
-    for (i = 0; i < dados.itens.length; i += PARTE) partes.push(dados.itens.slice(i, i + PARTE));
-    var meta = { versao: 1, partes: partes.length, atualizado: dados.atualizado, locaisExtra: dados.locaisExtra, estadosExtra: dados.estadosExtra, iniciosPC: dados.iniciosPC, versaoInicios: dados.versaoInicios };
-    var escritas = [];
-    partes.forEach(function (pt, k) {
-      var j = JSON.stringify(pt);
-      if (nuvem.escrito['parte' + k] !== j) escritas.push({ nome: 'parte' + k, corpo: { itens: pt }, json: j });
-    });
-    escritas.push({ nome: 'registo', corpo: meta, json: JSON.stringify(meta) });
-    var n = 0;
-    (function seguinte() {
-      if (n >= escritas.length) {
-        nuvem.aEscrever = false; nuvem.falhou = false;
-        estadoNuvem('✓ Guardado na sua conta Claude (' + dados.itens.length + ' equipamentos).', 'ok-t');
-        if (nuvem.pendente) guardarNuvem();
-        return;
-      }
-      var w = escritas[n++];
-      refNuvem(w.nome).set(w.corpo).then(function () {
-        nuvem.escrito[w.nome] = w.json; seguinte();
-      }, function (e) {
-        nuvem.aEscrever = false; nuvem.falhou = true;
-        var transitorio = e && (e.code === 'unavailable' || e.code === 'resource_exhausted');
-        estadoNuvem('✗ Não consegui guardar na conta Claude. Exporte para Excel antes de fechar.', 'erro-t');
-        if (transitorio) setTimeout(function () { if (nuvem.falhou) guardarNuvem(); }, 3000 + Math.random() * 2000);
-      });
-    })();
-  }
-  function lerNuvem() {
-    return refNuvem('registo').get().then(function (m) {
-      if (!m.exists) return null;
-      // Os dados da conta vêm trancados (só leitura): copia-os antes de os usar
-      var copia = function (x) { return JSON.parse(JSON.stringify(x)); };
-      var meta = copia(m.data()), pedidos = [];
-      for (var k = 0; k < (meta.partes || 0); k++) pedidos.push(refNuvem('parte' + k).get());
-      return Promise.all(pedidos).then(function (ps) {
-        var itens = [];
-        ps.forEach(function (p, k) {
-          var pt = p.exists && Array.isArray(p.data().itens) ? copia(p.data().itens) : [];
-          nuvem.escrito['parte' + k] = JSON.stringify(pt);
-          itens = itens.concat(pt);
-        });
-        return { itens: itens, locaisExtra: meta.locaisExtra, estadosExtra: meta.estadosExtra, iniciosPC: meta.iniciosPC, versaoInicios: meta.versaoInicios, atualizado: meta.atualizado || 0 };
-      });
-    });
-  }
-  function ligarNuvem() {
-    if (!MODO_PAGINA || !(window.claude && window.claude.use)) return;
-    estadoNuvem('A abrir o registo da conta Claude…');
-    Promise.all([window.claude.use('db'), window.claude.use('user')]).then(function (r) {
-      var db = r[0], user = r[1];
-      if (!db || !user) throw new Error('sem db');
-      return user.id().then(function (uid) {
-        if (!uid) throw new Error('sem id');
-        nuvem.db = db; nuvem.uid = uid; nuvem.lendo = true;
-        return lerNuvem();
-      });
-    }).then(function (remoto) {
-      nuvem.lendo = false;
-      // Mexeu antes de a conta responder: junta as duas partes, para não perder nada
-      if (remoto && nuvem.mudouAntes) {
-        juntarRegisto(remoto);
-        try { localStorage.setItem(CHAVE, JSON.stringify(dados)); } catch (e) {}
-        redesenharTudo();
-        guardarNuvem();
-        return;
-      }
-      // Fica a versão mais recente: a da conta ou a deste aparelho
-      if (remoto && remoto.atualizado >= dados.atualizado) {
-        aplicar(remoto);
-        try { localStorage.setItem(CHAVE, JSON.stringify(dados)); } catch (e) {}
-        redesenharTudo();
-        estadoNuvem('✓ Registo aberto da sua conta Claude (' + dados.itens.length + ' equipamentos).', 'ok-t');
-      } else if (dados.itens.length || dados.locaisExtra.length || dados.estadosExtra.length) {
-        guardarNuvem();
-      } else {
-        estadoNuvem('✓ O registo fica guardado na sua conta Claude.', 'ok-t');
-      }
-    }).catch(function () {
-      nuvem.db = null; nuvem.lendo = false;
-      estadoNuvem('! Não consegui ligar à conta Claude. O registo fica só neste iPhone e pode perder-se ao fechar. Exporte para Excel no fim.', 'aviso-t');
-    });
-  }
-  function juntarRegisto(r) {
-    (r.itens || []).forEach(function (it) {
-      var ex = procurar(it.serie);
-      if (!ex) dados.itens.push(it);
-      else if (new Date(it.quando) > new Date(ex.quando)) { ex.tipo = it.tipo; ex.local = it.local; ex.estado = it.estado; ex.quando = it.quando; }
-    });
-    (r.locaisExtra || []).forEach(function (l) { if (dados.locaisExtra.indexOf(l) < 0) dados.locaisExtra.push(l); });
-    (r.estadosExtra || []).forEach(function (l) { if (dados.estadosExtra.indexOf(l) < 0) dados.estadosExtra.push(l); });
-    dados.atualizado = Date.now();
-  }
-  function redesenharTudo() {
-    try { desenharInicios(); desenharPerguntas(); atualizarContagens(); if (!$('sec-lista').classList.contains('escondido')) desenharLista(); } catch (e) {}
-  }
   function locais() { return LOCAIS_BASE.concat(dados.locaisExtra); }
   function estados() { return ESTADOS.concat(dados.estadosExtra); }
   function procurar(serie) {
@@ -3118,7 +3032,7 @@ var qrcode = function() {
   // ---------- Navegação ----------
   var navBtns = document.querySelectorAll('nav button');
   function mostrarSec(nome) {
-    ['ler', 'lista', 'comparar'].forEach(function (s) { $('sec-' + s).classList.toggle('escondido', s !== nome); });
+    ['ler', 'lista'].forEach(function (s) { $('sec-' + s).classList.toggle('escondido', s !== nome); });
     for (var i = 0; i < navBtns.length; i++) navBtns[i].classList.toggle('ativo', navBtns[i].getAttribute('data-sec') === nome);
     if (nome !== 'ler') pararCamara();
     if (nome === 'lista') desenharLista();
@@ -3128,12 +3042,26 @@ var qrcode = function() {
   }
 
   // ---------- 1. Perguntas ----------
-  var sessao = { local: '', estado: '', tipo: '' };
+  var sessao = { local: '', estado: '' };
   var lidosSessao = [];
+
+  // A última escolha (local, estado, tipo) fica guardada para a próxima vez. Não tem dados pessoais.
+  var CHAVE_ESCOLHA = 'inventario_escolha';
+  function guardarEscolha() { try { localStorage.setItem(CHAVE_ESCOLHA, JSON.stringify(sessao)); } catch (e) {} }
+  function carregarEscolha() {
+    try {
+      var o = JSON.parse(localStorage.getItem(CHAVE_ESCOLHA) || 'null');
+      if (!o) return;
+      if (o.local && locais().indexOf(o.local) < 0) dados.locaisExtra.push(o.local);
+      if (locais().indexOf(o.local) >= 0) sessao.local = o.local;
+      if (estados().indexOf(o.estado) >= 0) sessao.estado = o.estado;
+    } catch (e) {}
+  }
 
   function desenharEscolhas(idCaixa, opcoes, campo) {
     var c = $(idCaixa);
     c.innerHTML = '';
+    if (!opcoes.length) { c.innerHTML = '<p class="nota">Ainda não há locais. Escreva o primeiro no campo em baixo e toque em "Acrescentar local".</p>'; return; }
     opcoes.forEach(function (op) {
       var b = document.createElement('button');
       b.textContent = op;
@@ -3142,18 +3070,124 @@ var qrcode = function() {
       c.appendChild(b);
     });
   }
-  // ---------- Códigos QR dos locais ----------
-  function linhasQR() {
-    var vistosQR = {};
-    return $('qr-locais').value.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); })
-      .filter(function (l) { var k = l.toLowerCase(); if (!l || vistosQR[k]) return false; vistosQR[k] = 1; return true; });
+  function desenharPerguntas() {
+    desenharEscolhas('esc-local', locais(), 'local');
+    desenharEscolhas('esc-estado', estados(), 'estado');
+    desenharExtras();
+    $('falta').textContent = '';
   }
+  // Mensagem logo por baixo do campo, para se ver sem fazer scroll
+  function msgCampo(id, txt, classe) { var e = $(id); e.textContent = txt; e.className = classe || ''; }
+
+  // Acrescenta um local ou estado escrito pela Daniela. Devolve o nome que fica escolhido.
+  function acrescentarExtra(campo, texto) {
+    var v = String(texto || '').replace(/\s+/g, ' ').trim();
+    if (!v) return null;
+    var lista = campo === 'local' ? locais() : estados();
+    var igual = lista.filter(function (l) { return l.toLowerCase() === v.toLowerCase(); })[0];
+    if (!igual) { (campo === 'local' ? dados.locaisExtra : dados.estadosExtra).push(v); guardar(true); }
+    sessao[campo] = igual || v;
+    guardarEscolha();
+    return { nome: igual || v, novo: !igual };
+  }
+  $('btn-novo-local').addEventListener('click', function () {
+    var r = acrescentarExtra('local', $('novo-local').value);
+    if (!r) { msgCampo('msg-local', '! Escreva o nome do local e toque em "Acrescentar local".', 'aviso-t'); $('novo-local').focus(); return; }
+    $('novo-local').value = '';
+    try { $('novo-local').blur(); } catch (e) {}
+    desenharPerguntas();
+    msgCampo('msg-local', r.novo ? '✓ Local "' + r.nome + '" acrescentado e escolhido.' : '✓ "' + r.nome + '" já existia. Fica escolhido.', 'ok-t');
+  });
+  $('novo-local').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('btn-novo-local').click(); } });
+  $('btn-novo-estado').addEventListener('click', function () {
+    var r = acrescentarExtra('estado', $('novo-estado').value);
+    if (!r) { msgCampo('msg-estado', '! Escreva qual é o estado e toque em "Acrescentar estado".', 'aviso-t'); $('novo-estado').focus(); return; }
+    $('novo-estado').value = '';
+    try { $('novo-estado').blur(); } catch (e) {}
+    desenharPerguntas();
+    msgCampo('msg-estado', r.novo ? '✓ Estado "' + r.nome + '" acrescentado e escolhido.' : '✓ "' + r.nome + '" já existia. Fica escolhido.', 'ok-t');
+  });
+  $('novo-estado').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('btn-novo-estado').click(); } });
+  $('btn-comecar').addEventListener('click', function () {
+    // Escreveu um local ou estado novo mas não tocou em "Acrescentar": acrescenta e escolhe agora
+    if ($('novo-local').value.trim()) $('btn-novo-local').click();
+    if ($('novo-estado').value.trim()) $('btn-novo-estado').click();
+    var falta = [];
+    if (!sessao.local) falta.push('o local');
+    if (!sessao.estado) falta.push('o estado');
+    if (falta.length) { $('falta').textContent = '! Falta escolher ' + falta.join(', ') + '.'; return; }
+    guardarEscolha();
+    desenharResumo();
+    $('r-msg').textContent = '';
+    if (!dados.iniciosPC.length) msgCampo('r-msg', '! Ainda não escreveu os inícios dos números de série dos PC (em "Números de série dos PC"). Sem eles, tudo o que ler fica como hotspot.', 'aviso-t');
+    $('perguntas').classList.add('escondido');
+    $('leitura').classList.remove('escondido');
+    $('ultimo').className = ''; $('ultimo').innerHTML = '';
+    atualizarContagens();
+    window.scrollTo(0, 0);
+    // A câmara liga logo (o toque em "Começar a ler" conta como autorização do navegador).
+    if (!ativo) ligarCamara();
+  });
+  $('btn-mudar').addEventListener('click', function () {
+    pararCamara();
+    $('leitura').classList.add('escondido');
+    $('perguntas').classList.remove('escondido');
+    desenharPerguntas();
+    window.scrollTo(0, 0);
+  });
+
+  // ---- Local, estado e tipo no ecrã de leitura: muda-se sem sair e sem desligar a câmara ----
+  var NOVO = '__novo__', modoNovo = '';
+  function opcoesSelect(lista, atual, rotNovo) {
+    lista = lista.slice();
+    if (atual && lista.indexOf(atual) < 0) lista.push(atual);
+    return lista.map(function (v) { return '<option' + (v === atual ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('') +
+      (rotNovo ? '<option value="' + NOVO + '">＋ ' + esc(rotNovo) + '</option>' : '');
+  }
+  function desenharResumo() {
+    $('r-local').innerHTML = opcoesSelect(locais(), sessao.local, 'Outro local…');
+    $('r-estado').innerHTML = opcoesSelect(estados(), sessao.estado, 'Outro estado…');
+  }
+  function mudouEscolha() {
+    guardarEscolha();
+    vistos = {}; ultimoCod = '';
+    msgCampo('r-msg', '✓ A partir de agora: ' + sessao.local + ' · ' + sessao.estado + '.', 'ok-t');
+    atualizarContagens();
+  }
+  function fecharNovo() { modoNovo = ''; $('r-novo').classList.add('escondido'); $('r-novo-txt').value = ''; }
+  [['r-local', 'local'], ['r-estado', 'estado']].forEach(function (par) {
+    $(par[0]).addEventListener('change', function () {
+      if (this.value === NOVO) {
+        modoNovo = par[1];
+        desenharResumo();
+        $('r-novo-txt').placeholder = par[1] === 'local' ? 'Nome do local (por exemplo, Sala B3)' : 'Escreva qual é o estado';
+        $('r-novo').classList.remove('escondido');
+        msgCampo('r-msg', '');
+        $('r-novo-txt').focus();
+        return;
+      }
+      fecharNovo();
+      sessao[par[1]] = this.value;
+      mudouEscolha();
+    });
+  });
+  $('r-novo-ok').addEventListener('click', function () {
+    var r = acrescentarExtra(modoNovo, $('r-novo-txt').value);
+    if (!r) { msgCampo('r-msg', '! Escreva o nome e toque em "Acrescentar".', 'aviso-t'); $('r-novo-txt').focus(); return; }
+    fecharNovo();
+    desenharResumo();
+    mudouEscolha();
+  });
+  $('r-novo-txt').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('r-novo-ok').click(); } });
+  $('r-novo-nao').addEventListener('click', function () { fecharNovo(); msgCampo('r-msg', ''); });
+
+  // ---- Criar e imprimir os códigos QR dos locais ----
   $('det-qr').addEventListener('toggle', function () {
     if (this.open && !$('qr-locais').value.trim()) $('qr-locais').value = locais().join('\n');
   });
   $('btn-qr-acrescentar').addEventListener('click', function () {
     var base = $('qr-base').value.replace(/\s+/g, ' ').trim() || 'Gabinete digital';
-    var na = Math.max(1, Math.min(30, parseInt($('qr-arm').value, 10) || 0)), np = Math.max(1, Math.min(10, parseInt($('qr-prat').value, 10) || 0));
+    var na = Math.max(1, Math.min(30, parseInt($('qr-arm').value, 10) || 1)), np = Math.max(1, Math.min(10, parseInt($('qr-prat').value, 10) || 1));
     var novas = [];
     for (var a = 1; a <= na; a++) for (var p = 1; p <= np; p++) novas.push(base + ' · Armário ' + a + ' · Prateleira ' + p);
     var atual = $('qr-locais').value.replace(/\s+$/, '');
@@ -3161,7 +3195,9 @@ var qrcode = function() {
     msgCampo('qr-msg', '✓ Acrescentei ' + novas.length + ' prateleiras à lista.', 'ok-t');
   });
   $('btn-qr-imprimir').addEventListener('click', function () {
-    var nomes = linhasQR();
+    var vistosQR = {};
+    var nomes = $('qr-locais').value.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); })
+      .filter(function (l) { var k = l.toLowerCase(); if (!l || vistosQR[k]) return false; vistosQR[k] = 1; return true; });
     if (!nomes.length) { msgCampo('qr-msg', '! Escreva pelo menos um local na lista.', 'aviso-t'); return; }
     if (!window.qrcode) { msgCampo('qr-msg', '✗ O criador de códigos QR não carregou. Feche e volte a abrir a ferramenta.', 'erro-t'); return; }
     window.qrcode.stringToBytes = window.qrcode.stringToBytesFuncs['UTF-8'];
@@ -3176,104 +3212,50 @@ var qrcode = function() {
   window.addEventListener('afterprint', function () { document.body.classList.remove('imprimir-qr'); });
   $('btn-imprimir').addEventListener('click', function () { document.body.classList.remove('imprimir-qr'); }, true);
 
-  // ---------- Apagar locais e estados acrescentados ----------
+  // ---- Apagar locais ou estados acrescentados por engano ----
   function desenharExtras() {
-    var c = $('lista-extras');
-    if (!c) return;
-    var linha = function (tipo, v) {
-      return '<div class="extra"><span>' + (tipo === 'local' ? 'Local' : 'Estado') + ': <b>' + esc(v) + '</b></span>' +
-        '<button class="pequeno perigo" data-ex="' + tipo + '" data-v="' + esc(v) + '">Apagar</button></div>';
+    var c = $('gerir-extras'), html = '';
+    var linha = function (campo, v, k) {
+      return '<div class="linha-form"><span style="flex:1 1 200px; align-self:center">' + esc(v) + '</span>' +
+        '<button class="pequeno perigo" data-ex="' + campo + '" data-k="' + k + '">Apagar</button></div>';
     };
-    var html = dados.locaisExtra.map(function (v) { return linha('local', v); }).join('') + dados.estadosExtra.map(function (v) { return linha('estado', v); }).join('');
-    c.innerHTML = html || '<p>Não há locais nem estados acrescentados.</p>';
+    if (dados.locaisExtra.length) html += '<h3>Locais</h3>' + dados.locaisExtra.map(function (v, k) { return linha('local', v, k); }).join('');
+    if (dados.estadosExtra.length) html += '<h3>Estados</h3>' + dados.estadosExtra.map(function (v, k) { return linha('estado', v, k); }).join('');
+    c.innerHTML = html || '<p class="nota">Ainda não acrescentou nenhum local nem estado.</p>';
   }
-  $('lista-extras').addEventListener('click', function (e) {
+  $('gerir-extras').addEventListener('click', function (e) {
     var b = e.target.closest ? e.target.closest('button') : null;
     if (!b) return;
-    var tipo = b.getAttribute('data-ex'), v = b.getAttribute('data-v');
-    if (tipo === 'nao') { desenharExtras(); return; }
-    if (!b.getAttribute('data-sim')) {
-      b.parentNode.innerHTML = '<span>Apagar <b>' + esc(v) + '</b>?</span>' +
-        '<button class="pequeno perigo" data-ex="' + tipo + '" data-v="' + esc(v) + '" data-sim="1">Sim, apagar</button>' +
-        '<button class="pequeno" data-ex="nao">Não</button>';
+    var campo = b.getAttribute('data-ex'), k = +b.getAttribute('data-k');
+    var lista = campo === 'local' ? dados.locaisExtra : dados.estadosExtra, v = lista[k];
+    if (v === undefined) return;
+    if (!b.hasAttribute('data-sim')) {
+      // Pede confirmação na própria linha
+      b.parentNode.innerHTML = '<span style="flex:1 1 200px; align-self:center">Apagar "' + esc(v) + '"?</span>' +
+        '<button class="pequeno perigo" data-ex="' + campo + '" data-k="' + k + '" data-sim="1">Sim, apagar</button>' +
+        '<button class="pequeno" data-nao="1">Não</button>';
       return;
     }
-    if (tipo === 'local') { dados.locaisExtra = dados.locaisExtra.filter(function (x) { return x !== v; }); if (sessao.local === v) sessao.local = ''; }
-    if (tipo === 'estado') { dados.estadosExtra = dados.estadosExtra.filter(function (x) { return x !== v; }); if (sessao.estado === v) sessao.estado = ''; }
-    guardar(); desenharPerguntas();
+    lista.splice(k, 1);
+    if (sessao[campo] === v) { sessao[campo] = ''; guardarEscolha(); }
+    guardar(true);
+    desenharPerguntas();
   });
+  $('gerir-extras').addEventListener('click', function (e) { if (e.target.getAttribute && e.target.getAttribute('data-nao')) desenharExtras(); });
 
-  function desenharPerguntas() {
-    try { desenharExtras(); } catch (e) {}
-    desenharEscolhas('esc-local', locais(), 'local');
-    desenharEscolhas('esc-estado', estados(), 'estado');
-    desenharEscolhas('esc-tipo', TIPOS, 'tipo');
-    $('falta').textContent = '';
-  }
-  // Mensagem logo por baixo do campo, para se ver sem fazer scroll
-  function msgCampo(id, txt, classe) { var e = $(id); e.textContent = txt; e.className = classe || ''; }
-  $('btn-novo-local').addEventListener('click', function () {
-    var v = $('novo-local').value.replace(/\s+/g, ' ').trim();
-    if (!v) { msgCampo('msg-local', '! Escreva o nome do local e toque em "Acrescentar local".', 'aviso-t'); $('novo-local').focus(); return; }
-    var igual = locais().filter(function (l) { return l.toLowerCase() === v.toLowerCase(); })[0];
-    if (!igual) { dados.locaisExtra.push(v); guardar(); }
-    sessao.local = igual || v;
-    $('novo-local').value = '';
-    try { $('novo-local').blur(); } catch (e) {}
-    desenharPerguntas();
-    msgCampo('msg-local', igual ? '✓ "' + igual + '" já existia. Fica escolhido.' : '✓ Local "' + v + '" acrescentado e escolhido.', 'ok-t');
-  });
-  $('novo-local').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('btn-novo-local').click(); } });
-  // Outro estado: a Daniela escreve qual, fica escolhido e guardado para as próximas vezes
-  $('btn-novo-estado').addEventListener('click', function () {
-    var v = $('novo-estado').value.replace(/\s+/g, ' ').trim();
-    if (!v) { msgCampo('msg-estado', '! Escreva qual é o estado e toque em "Acrescentar estado".', 'aviso-t'); $('novo-estado').focus(); return; }
-    var igual = estados().filter(function (e) { return e.toLowerCase() === v.toLowerCase(); })[0];
-    if (!igual) { dados.estadosExtra.push(v); guardar(); }
-    sessao.estado = igual || v;
-    $('novo-estado').value = '';
-    try { $('novo-estado').blur(); } catch (e) {}
-    desenharPerguntas();
-    msgCampo('msg-estado', igual ? '✓ "' + igual + '" já existia. Fica escolhido.' : '✓ Estado "' + v + '" acrescentado e escolhido.', 'ok-t');
-  });
-  $('novo-estado').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('btn-novo-estado').click(); } });
-  $('btn-comecar').addEventListener('click', function () {
-    // Escreveu um local ou estado novo mas não tocou em "Acrescentar": acrescenta e escolhe agora
-    if ($('novo-local').value.trim()) $('btn-novo-local').click();
-    if ($('novo-estado').value.trim()) $('btn-novo-estado').click();
-    var falta = [];
-    if (!sessao.local) falta.push('o local');
-    if (!sessao.estado) falta.push('o estado');
-    if (MODO_SITE) sessao.tipo = 'PC'; // lê PC e hotspots; o tipo decide-se por cada n.º de série
-    if (!sessao.tipo) falta.push('se vai ler PC ou hotspot');
-    if (falta.length) { $('falta').textContent = '! Falta escolher ' + falta.join(', ') + '.'; return; }
-    $('r-local').textContent = sessao.local;
-    $('r-estado').textContent = sessao.estado;
-    $('r-tipo').textContent = MODO_SITE ? 'PC e hotspots' : sessao.tipo;
-    $('perguntas').classList.add('escondido');
-    $('leitura').classList.remove('escondido');
-    $('ultimo').className = ''; $('ultimo').innerHTML = '';
-    atualizarContagens();
-    window.scrollTo(0, 0);
-  });
-  $('btn-mudar').addEventListener('click', function () {
-    pararCamara();
-    if (leituraTotal) pararLeituraTotal();
-    $('leitura-total').innerHTML = '';
-    $('leitura').classList.add('escondido');
-    $('perguntas').classList.remove('escondido');
-    desenharPerguntas();
-    window.scrollTo(0, 0);
-  });
+  // ---- Ajuda curta, mostrada na primeira vez ----
+  var CHAVE_AJUDA = 'inventario_ajuda_vista';
+  $('btn-ajuda-ok').addEventListener('click', function () { $('ajuda').hidden = true; try { localStorage.setItem(CHAVE_AJUDA, '1'); } catch (e) {} });
+  $('btn-ajuda').addEventListener('click', function () { $('ajuda').hidden = false; window.scrollTo(0, 0); });
+  try { $('ajuda').hidden = !!localStorage.getItem(CHAVE_AJUDA); } catch (e) { $('ajuda').hidden = false; }
 
-  function desenharInicios() { $('inicios-pc').value = listaInicios(); $('inicios-hs').value = (dados.iniciosHS || []).join(', '); }
+  function desenharInicios() { $('inicios-pc').value = listaInicios(); $('inicios-hs').value = dados.iniciosHS.join(', '); }
   $('btn-inicios-hs').addEventListener('click', function () {
     var v = $('inicios-hs').value.split(/[,;\n]/).map(function (x) { return norm(x); }).filter(function (x) { return x; });
-    dados.iniciosHS = v; guardar(); desenharInicios();
+    dados.iniciosHS = v;
+    guardar();
+    desenharInicios();
     $('inicios-hs-msg').textContent = v.length ? '✓ Guardado.' : '✓ Guardado. Sem inícios, só os códigos que começam por 1 pedem confirmação.';
-  });
-  $('btn-inicios-hs-repor').addEventListener('click', function () {
-    dados.iniciosHS = INICIOS_HS.slice(); guardar(); desenharInicios(); $('inicios-hs-msg').textContent = '✓ Valores iniciais repostos.';
   });
   $('btn-inicios').addEventListener('click', function () {
     var v = $('inicios-pc').value.split(/[,;\n]/).map(function (x) { return norm(x); }).filter(function (x) { return x; });
@@ -3282,61 +3264,89 @@ var qrcode = function() {
     desenharInicios();
     $('inicios-msg').textContent = v.length ? '✓ Guardado.' : '✓ Guardado. Sem inícios, a ferramenta aceita qualquer código.';
   });
-  $('btn-inicios-repor').addEventListener('click', function () {
-    dados.iniciosPC = INICIOS_PC.slice(); guardar(); desenharInicios(); $('inicios-msg').textContent = '✓ Valores iniciais repostos.';
-  });
 
   // ---------- Registo de uma leitura ----------
   var ultimoCod = '', ultimoT = 0;
   // Códigos que a câmara está a ver: cada um só conta outra vez depois de 5 s fora da imagem
   var vistos = {};
   function jaVisto(serie, agora) { var v = vistos[serie]; vistos[serie] = agora; return !!(v && agora - v < 5000); }
-  var aConfirmar = {};
-  var ignorados = {}; // códigos que a Daniela mandou ignorar nesta sessão
-  // Códigos que não são PC e não começam pelos inícios dos hotspots: pedem confirmação
-  function hotspotConhecido(s) {
-    var l = dados.iniciosHS || [];
-    if (!l.length) return !/^1/.test(s);
-    return l.some(function (i) { return s.indexOf(norm(i)) === 0; });
+
+  // Três sons diferentes, para não ser preciso olhar para o ecrã:
+  // true = registado (bip agudo curto); 'repetido' = já estava aqui (dois bips médios); false = atenção (som grave e longo)
+  function contextoSom() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!som.ctx) som.ctx = new AC();
+    if (som.ctx.state === 'suspended') { try { som.ctx.resume(); } catch (e) {} }
+    return som.ctx;
   }
-  function comecaPor1(s) { return MODO_SITE && tipoDe(s) === 'Hotspot' && !hotspotConhecido(s); }
-  function perguntarUns(uns) {
-    som(false);
-    mostrarVarios({ novos: [], iguais: [], outros: [], movidos: [], uns: uns.map(function (x) { return { serie: x, tipo: tipoDe(x) }; }), alvo: { local: sessao.local, estado: sessao.estado, tipo: sessao.tipo } });
+  function bip(ctx, freq, ini, dur) {
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = freq; g.gain.value = 0.15;
+    o.connect(g); g.connect(ctx.destination);
+    o.start(ctx.currentTime + ini); o.stop(ctx.currentTime + ini + dur);
   }
+  function piscar(bom) {
+    var f = $('flash');
+    if (!f) return;
+    f.className = ''; void f.offsetWidth; f.className = bom === 'repetido' ? 'rep' : bom ? 'ok' : 'aviso';
+  }
+  function som(bom) {
+    piscar(bom);
+    try {
+      var ctx = contextoSom();
+      if (ctx) {
+        if (bom === 'repetido') { bip(ctx, 800, 0, 0.08); bip(ctx, 800, 0.15, 0.08); }
+        else if (bom) bip(ctx, 1200, 0, 0.12);
+        else bip(ctx, 440, 0, 0.35);
+      }
+    } catch (e) {}
+    if (navigator.vibrate) { try { navigator.vibrate(bom === 'repetido' ? [60, 60, 60] : bom ? 120 : [80, 60, 80]); } catch (e) {} }
+  }
+  // O iPhone só deixa tocar sons depois de um toque no ecrã: o primeiro toque prepara o som
+  function desbloquearSom() {
+    try { var ctx = contextoSom(); if (ctx) bip(ctx, 1, 0, 0.01); } catch (e) {}
+    document.removeEventListener('touchend', desbloquearSom, true);
+    document.removeEventListener('click', desbloquearSom, true);
+  }
+  document.addEventListener('touchend', desbloquearSom, true);
+  document.addEventListener('click', desbloquearSom, true);
+
+  // PC: começa por um dos inícios escritos. Tudo o resto é hotspot.
+  function inicioValido(serie) {
+    return dados.iniciosPC.some(function (i) { return serie.indexOf(norm(i)) === 0; });
+  }
+  function tipoDe(serie) { return inicioValido(serie) ? 'PC' : 'Hotspot'; }
+  // Hotspot conhecido: começa por um dos inícios dos hotspots (sem lista, todos menos os que começam por 1)
+  function hsConhecido(s) {
+    if (/^1/.test(s)) return false;
+    if (!dados.iniciosHS.length) return true;
+    return dados.iniciosHS.some(function (i) { return s.indexOf(norm(i)) === 0; });
+  }
+  // Na câmara ao vivo, um hotspot só conta se for lido duas vezes em 3 s (evita números mal lidos)
+  var aConfirmar = {}, ignorados = {};
   function hotspotIncerto(s, agora) {
-    if (!MODO_SITE || !ativo || tipoDe(s) !== 'Hotspot') return false;
+    if (!ativo) return false;
     var v = aConfirmar[s]; aConfirmar[s] = agora;
     if (v && agora - v < 3000) { delete aConfirmar[s]; return false; }
     delete vistos[s];
     return true;
   }
-
-  function piscar(bom) {
-    var f = $('flash');
-    if (!f) return;
-    f.className = ''; void f.offsetWidth; f.className = bom ? 'ok' : 'aviso';
+  function perguntarDesconhecido(serie) {
+    som(false);
+    var um = /^1/.test(serie);
+    mostrarUltimo('aviso', '<p class="aviso-t">! ' + (um ? 'Este código começa por 1. Normalmente não é o n.º de série.' : 'Este código não parece um n.º de série de PC nem de hotspot.') + '</p>' +
+      '<p class="grande">' + esc(serie) + '</p><p>É o que quer registar?</p>' +
+      '<div class="linha-form"><button class="pequeno principal" id="u-duv-sim">Sim, registar como hotspot</button>' +
+      '<button class="pequeno" id="u-duv-nao">Não, ignorar</button></div>');
+    $('u-duv-sim').addEventListener('click', function () { registar(serie, 'manual', true); });
+    $('u-duv-nao').addEventListener('click', function () {
+      ignorados[serie] = 1;
+      mostrarUltimo('ok', '<p class="ok-t">✓ Ignorado: ' + esc(serie) + '. A câmara não volta a perguntar por este código.</p>');
+    });
   }
-  function som(bom) {
-    piscar(bom);
-    try {
-      var AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      if (!som.ctx) som.ctx = new AC();
-      var ctx = som.ctx, o = ctx.createOscillator(), g = ctx.createGain();
-      o.frequency.value = bom ? 1200 : 440;
-      g.gain.value = 0.15;
-      o.connect(g); g.connect(ctx.destination);
-      o.start(); o.stop(ctx.currentTime + (bom ? 0.12 : 0.35));
-    } catch (e) {}
-    if (navigator.vibrate) { try { navigator.vibrate(bom ? 120 : [80, 60, 80]); } catch (e) {} }
-  }
-
-  function inicioValido(serie) {
-    if (MODO_SITE) return true;
-    if (sessao.tipo !== 'PC' || !dados.iniciosPC.length) return true;
-    return dados.iniciosPC.some(function (i) { return serie.indexOf(norm(i)) === 0; });
-  }
+  // Quando a câmara lê um PC, os outros códigos da mesma etiqueta ficam ignorados durante 4 s
+  var ultimoPC = 0;
   function listaInicios() { return dados.iniciosPC.join(', '); }
 
   function eLocalQR(texto) { return /^LOCAL:/i.test(String(texto || '').trim()); }
@@ -3347,17 +3357,15 @@ var qrcode = function() {
     nome = igual || nome;
     if (sessao.local === nome) return;
     sessao.local = nome;
-    $('r-local').textContent = nome;
-    ultimoCod = ''; vistos = {};
+    desenharResumo();
+    mudouEscolha();
     som(true);
     mostrarUltimo('ok', '<p class="ok-t">✓ Local mudado</p><p class="grande">' + esc(nome) + '</p><p>Os próximos equipamentos ficam registados aqui.</p>');
-    atualizarContagens();
   }
 
   function registar(texto, origem, forcar) {
     if (eLocalQR(texto)) { mudarLocalQR(texto); return; }
     var serie = norm(texto);
-    var tipo = MODO_SITE ? tipoDe(serie) : sessao.tipo;
     if (origem === 'camara' || origem === 'texto') { ultimoSucesso = Date.now(); confirmPendente = false; }
     if (serie.length < 4) {
       mostrarUltimo('aviso', '<p class="aviso-t">! Código demasiado curto: ' + esc(texto) + '</p><p>Confirme o número e tente de novo.</p>');
@@ -3367,24 +3375,13 @@ var qrcode = function() {
     var agora = Date.now();
     // A câmara continua a ver o mesmo código enquanto o tablet está apontado: só conta outra vez depois de ler um código diferente.
     if (origem === 'camara' && jaVisto(serie, agora)) return;
-    if (origem === 'camara' && !forcar && hotspotIncerto(serie, agora)) return;
-    if (!forcar && origem === 'camara' && ignorados[serie]) return;
-    if (!forcar && comecaPor1(serie)) { perguntarUns([serie]); return; }
     ultimoCod = serie; ultimoT = agora;
-
-    if (!forcar && !inicioValido(serie)) {
-      if (origem === 'camara') {
-        // Outro código da etiqueta (modelo, peça, MAC...): não regista
-        mostrarUltimo('aviso', '<p class="aviso-t">! Código ignorado: ' + esc(serie) + '</p>' +
-          '<p>Não começa por ' + esc(listaInicios()) + '. Aponte para o código por baixo de "S/N".</p>');
-        return;
-      }
-      som(false);
-      mostrarUltimo('aviso', '<p class="aviso-t">! Este número não começa por ' + esc(listaInicios()) + '</p>' +
-        '<p class="grande">' + esc(serie) + '</p><p>Confirme se escreveu bem.</p>' +
-        '<div class="linha-form"><button class="pequeno" id="u-forcar">Registar mesmo assim</button></div>');
-      $('u-forcar').addEventListener('click', function () { registar(serie, 'manual', true); });
-      return;
+    var tipo = tipoDe(serie);
+    if (tipo === 'PC') ultimoPC = agora;
+    if (!forcar && tipo === 'Hotspot') {
+      if (origem === 'camara' && ignorados[serie]) return;
+      if (origem === 'camara' && hotspotIncerto(serie, agora)) return;
+      if (!hsConhecido(serie)) { perguntarDesconhecido(serie); return; }
     }
 
     var ex = procurar(serie);
@@ -3393,13 +3390,13 @@ var qrcode = function() {
       dados.itens.push(item);
       guardar();
       lidosSessao.unshift(item);
-      som(true);
+      som(naLista(item));
       mostrarNovo(item);
     } else if (ex.local === sessao.local && ex.estado === sessao.estado && ex.tipo === tipo) {
-      som(false);
+      som('repetido');
       mostrarUltimo('aviso',
         '<p class="aviso-t">! Já estava registado</p><p class="grande">' + esc(serie) + '</p>' +
-        '<p>Lido às ' + horaTxt(ex.quando) + ' de ' + dataTxt(ex.quando) + ', aqui mesmo. Não mudei nada.</p>');
+        '<p>Lido às ' + horaTxt(ex.quando) + ' de ' + dataTxt(ex.quando) + ', aqui mesmo. Não mudei nada.</p>' + htmlAluno(serie));
     } else {
       som(false);
       mostrarDuplicado(ex);
@@ -3408,6 +3405,7 @@ var qrcode = function() {
   }
 
   function mostrarUltimo(classe, html) {
+    trocaAtual = null;
     var u = $('ultimo');
     u.className = classe;
     u.innerHTML = html;
@@ -3423,11 +3421,12 @@ var qrcode = function() {
   function mostrarNovo(item, mudou) {
     mostrarUltimo('ok',
       '<p class="ok-t">' + (mudou ? '✓ Estado mudado' : '✓ Registado') + '</p><p class="grande">' + esc(item.serie) + '</p>' +
-      '<p>' + esc(item.tipo) + ' · ' + esc(item.local) + ' · ' + esc(item.estado) + '</p>' +
+      '<p>' + esc(item.tipo) + ' · ' + esc(item.local) + ' · ' + esc(item.estado) + '</p>' + htmlAluno(item.serie, true) +
       '<div class="linha-form"><label for="u-estado" style="align-self:center">Mudar o estado deste:</label>' +
       '<select id="u-estado">' + opcoesEstado(item.estado) + '</select></div>' +
       '<div class="linha-form">' +
       '<button class="pequeno perigo" id="u-anular">Anular esta leitura</button></div>');
+    trocaAtual = item;
     $('u-estado').addEventListener('change', function () { item.estado = this.value; guardar(); mostrarNovo(item, true); desenharSessao(); });
     $('u-anular').addEventListener('click', function () {
       dados.itens = dados.itens.filter(function (x) { return x !== item; });
@@ -3444,11 +3443,11 @@ var qrcode = function() {
     mostrarUltimo('aviso',
       '<p class="aviso-t">! Este equipamento já foi lido noutro sítio</p><p class="grande">' + esc(ex.serie) + '</p>' +
       '<p>Registo anterior: ' + esc(ex.tipo) + ' · ' + esc(ex.local) + ' · ' + esc(ex.estado) +
-      ' · ' + dataTxt(ex.quando) + ' às ' + horaTxt(ex.quando) + '.</p>' +
+      ' · ' + dataTxt(ex.quando) + ' às ' + horaTxt(ex.quando) + '.</p>' + htmlAluno(ex.serie) +
       '<p>O que quer fazer?</p>' +
       '<div class="linha-form"><button class="pequeno principal" id="u-mover">Passar para ' + esc(sessao.local) + ', ' + esc(sessao.estado) + '</button>' +
       '<button class="pequeno" id="u-deixar">Deixar como estava</button></div>');
-    var alvo = { local: sessao.local, estado: sessao.estado, tipo: MODO_SITE ? tipoDe(ex.serie) : sessao.tipo };
+    var alvo = { local: sessao.local, estado: sessao.estado, tipo: tipoDe(ex.serie) };
     $('u-mover').addEventListener('click', function () {
       ex.local = alvo.local; ex.estado = alvo.estado; ex.tipo = alvo.tipo; ex.quando = new Date().toISOString();
       guardar();
@@ -3477,26 +3476,8 @@ var qrcode = function() {
     if (sessao.local) {
       var pc = 0, hs = 0;
       dados.itens.forEach(function (it) { if (it.local === sessao.local) { if (it.tipo === 'Hotspot') hs++; else pc++; } });
-      $('r-cont').textContent = 'Aqui: ' + pc + ' PC · ' + hs + (hs === 1 ? ' hotspot' : ' hotspots');
+      $('r-cont').textContent = 'Neste local: ' + pc + ' PC · ' + hs + (hs === 1 ? ' hotspot' : ' hotspots');
     }
-    avisoCopia();
-  }
-
-  // ---------- Cópia de segurança em atraso ----------
-  function marcarExportacao() { dados.ultimaExportacao = Date.now(); guardar(); avisoCopia(); }
-  function avisoCopia() {
-    var c = $('aviso-copia');
-    if (!c || MODO_PAGINA) return;
-    var ult = dados.ultimaExportacao || 0, hoje = dataTxt(new Date().toISOString());
-    var pend = dados.itens.filter(function (it) { return new Date(it.quando).getTime() > ult; });
-    var antiga = pend.filter(function (it) { return dataTxt(it.quando) !== hoje; });
-    if (!antiga.length) { c.hidden = true; return; }
-    var mais = antiga.reduce(function (m, it) { return it.quando < m ? it.quando : m; }, antiga[0].quando);
-    c.innerHTML = '<p>! Tem ' + pend.length + (pend.length === 1 ? ' leitura' : ' leituras') + ' que ainda não foi para Excel. A mais antiga é de ' + dataTxt(mais) + '. ' +
-      (ult ? 'Última exportação: ' + dataTxt(new Date(ult).toISOString()) + ' às ' + horaTxt(new Date(ult).toISOString()) + '.' : 'Ainda não exportou neste aparelho.') + '</p>' +
-      '<button class="pequeno principal" id="btn-copia-agora">Exportar agora</button>';
-    c.hidden = false;
-    $('btn-copia-agora').addEventListener('click', exportar);
   }
 
   $('btn-manual').addEventListener('click', function () {
@@ -3542,13 +3523,16 @@ var qrcode = function() {
       $('btn-camara').textContent = 'Desligar a câmara';
       pedirEcra();
       msgCam('✓ Câmara ligada. A procurar códigos…', 'ok-t');
+      // Com a câmara ligada, as dicas saem e o ecrã sobe até ao local e estado: imagem e resultado ficam à vista
+      $('dicas-camara').hidden = true;
+      try { $('leitura').scrollIntoView({ block: 'start' }); } catch (e) {}
       ultimoSucesso = Date.now();
-      if (sessao.tipo === 'PC') setTimeout(function () { prepararOCR().catch(function () {}); }, 1500);
+      if (dados.iniciosPC.length) setTimeout(function () { prepararOCR().catch(function () {}); }, 1500);
       $('ultimo').className = ''; $('ultimo').innerHTML = ''; ultimoCod = ''; vistos = {};
       escolherMotor();
     }).catch(function (e) {
       var n = e && e.name;
-      if (n === 'NotAllowedError' || n === 'SecurityError') msgCam('✗ O Chrome não deixou usar a câmara. Toque no cadeado ao lado do endereço e permita a câmara.', 'erro-t');
+      if (n === 'NotAllowedError' || n === 'SecurityError') msgCam('✗ O navegador não deixou usar a câmara. No iPhone: toque em "Aa" ao lado do endereço, depois em "Definições do site", e permita a câmara. No Chrome: toque no cadeado ao lado do endereço.', 'erro-t');
       else if (n === 'NotReadableError') msgCam('✗ A câmara está a ser usada por outra aplicação. Feche-a e tente de novo.', 'erro-t');
       else msgCam('✗ A câmara não abriu. Escreva o número no campo abaixo.', 'erro-t');
       pararCamara(true);
@@ -3562,6 +3546,7 @@ var qrcode = function() {
     $('video-wrap').style.display = 'none';
     $('btn-camara').textContent = 'Ligar a câmara';
     soltarEcra();
+    $('dicas-camara').hidden = false;
     if (!manterMsg) msgCam('');
   }
 
@@ -3854,12 +3839,13 @@ var qrcode = function() {
         var pedaco = canon(ini.slice(ini.length - n)), pos = tc.indexOf(pedaco);
         if (pos < 0) continue;
         var resto = t.slice(pos + n);
-        if (/^GW1W14/.test(ini)) {
+        // Inícios com letras que acabam em algarismo: seguem-se 7 algarismos
+        if (/[A-Z]/.test(ini) && /[0-9]$/.test(ini)) {
           var m = canon(resto).match(/^[0-9]{7}/);
           if (!m) continue;
           resto = m[0];
         } else if (/^[0-9]+$/.test(ini)) {
-          // Números só com algarismos (Leap T304, 4032...): o resto também passa a algarismos
+          // Inícios só com algarismos: o resto também passa a algarismos
           var md = canon(resto).match(/^[0-9]{8,}/);
           if (!md) continue;
           resto = md[0];
@@ -3912,7 +3898,7 @@ var qrcode = function() {
     som(true);
     mostrarUltimo('aviso',
       '<p class="aviso-t">! ' + esc(titulo || 'Li o número escrito, não as barras') + '</p><p class="grande">' + esc(serie) + '</p>' +
-      '<p>Confirme se está igual à etiqueta.</p>' +
+      '<p>Confirme se está igual à etiqueta.</p>' + htmlAluno(serie, true) +
       '<div class="linha-form"><button class="pequeno principal" id="u-ocr-ok">✓ Está certo, registar</button>' +
       '<button class="pequeno" id="u-ocr-corrigir">Corrigir</button></div>');
     $('u-ocr-ok').addEventListener('click', function () { confirmPendente = false; registar(serie, 'texto', true); });
@@ -3926,7 +3912,7 @@ var qrcode = function() {
 
   // Durante a câmara ao vivo: se as barras não forem lidas em 3 segundos, tenta o texto de 2,5 em 2,5 segundos
   setInterval(function () {
-    if (!ativo || ocrOcupado || confirmPendente || leituraTotal || sessao.tipo !== 'PC' || !dados.iniciosPC.length) return;
+    if (!ativo || ocrOcupado || confirmPendente || !dados.iniciosPC.length) return;
     if (Date.now() - ultimoSucesso < 3000 || !(video.readyState >= 2 && video.videoWidth)) return;
     ocrOcupado = true;
     var aviso = $('info-camara');
@@ -3943,220 +3929,8 @@ var qrcode = function() {
   }, 2500);
 
 
-  // ---------- Ler todo o texto da imagem (passo à parte, mais lento) ----------
-  // Imagem inteira, sem lista de caracteres, psm 11 (texto disperso) e psm 3 se vier quase vazio.
-  // O texto lido só aparece no ecrã: nunca é guardado. Só o número confirmado entra no registo.
-  var ultimaFoto = null, leituraTotal = null, geracaoTotal = 0;
-
-  function guardarUltimaFoto(im) {
-    var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
-    var k = Math.min(1, 2400 / Math.max(w, h));
-    var c = document.createElement('canvas');
-    c.width = Math.round(w * k); c.height = Math.round(h * k);
-    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-    ultimaFoto = c;
-  }
-
-  // Fotograma da câmara (se estiver ligada) ou a última fotografia
-  function imagemParaLer() {
-    if (ativo && video.readyState >= 2 && video.videoWidth) {
-      var c = document.createElement('canvas');
-      c.width = video.videoWidth; c.height = video.videoHeight;
-      c.getContext('2d').drawImage(video, 0, 0);
-      return { tela: c, origem: 'a imagem da câmara' };
-    }
-    if (ultimaFoto) return { tela: ultimaFoto, origem: 'a última fotografia' };
-    return null;
-  }
-
-  // Põe a imagem direita pelo ângulo medido; amplia 2x as imagens pequenas (texto pequeno lê-se mal).
-  // (Testei também 3x com mais nitidez: no leitor deste ficheiro ficou pior, por isso não se usa.)
-  function endireitar(fonte, sw, sh) {
-    var ang = estimarAngulo(fonte, sw, sh), r = ang * Math.PI / 180;
-    var k = Math.max(sw, sh) < 1000 ? 2 : Math.min(1, 2000 / Math.max(sw, sh));
-    var dw = sw * k, dh = sh * k, c = Math.abs(Math.cos(r)), s = Math.abs(Math.sin(r));
-    var t = document.createElement('canvas');
-    t.width = Math.round(dw * c + dh * s); t.height = Math.round(dw * s + dh * c);
-    var x = t.getContext('2d');
-    x.fillStyle = '#fff'; x.fillRect(0, 0, t.width, t.height);
-    x.imageSmoothingQuality = 'high';
-    x.translate(t.width / 2, t.height / 2); x.rotate(r);
-    x.drawImage(fonte, 0, 0, sw, sh, -dw / 2, -dh / 2, dw, dh);
-    return t;
-  }
-
-  // Junta as linhas do OCR em linhas da etiqueta (mesma altura), de cima para baixo e da esquerda para a direita
-  function linhasDoResultado(data) {
-    var brutas = [];
-    (data && data.blocks || []).forEach(function (b) {
-      (b.paragraphs || []).forEach(function (p) {
-        (p.lines || []).forEach(function (l) {
-          var palavras = (l.words || []).map(function (w) { return { texto: String(w.text || '').trim(), conf: w.confidence || 0, x: w.bbox.x0 }; })
-            .filter(function (w) { return /[A-Za-z0-9]/.test(w.texto); });
-          // Palavras com confiança muito baixa são quase sempre riscos das barras ou textura: ficam à parte
-          palavras.forEach(function (w) { w.ilegivel = w.conf < 30; });
-          if (palavras.length) brutas.push({ y0: l.bbox.y0, y1: l.bbox.y1, x0: l.bbox.x0, palavras: palavras });
-        });
-      });
-    });
-    brutas.sort(function (a, b) { return (a.y0 + a.y1) - (b.y0 + b.y1); });
-    var linhas = [];
-    brutas.forEach(function (l) {
-      var c = (l.y0 + l.y1) / 2, ultima = linhas[linhas.length - 1];
-      if (ultima && Math.abs(c - (ultima.y0 + ultima.y1) / 2) < 0.5 * Math.max(l.y1 - l.y0, ultima.y1 - ultima.y0)) {
-        ultima.palavras = ultima.palavras.concat(l.palavras);
-        ultima.y0 = Math.min(ultima.y0, l.y0); ultima.y1 = Math.max(ultima.y1, l.y1);
-      } else linhas.push({ y0: l.y0, y1: l.y1, palavras: l.palavras.slice() });
-    });
-    return linhas.map(function (l) {
-      l.palavras.sort(function (a, b) { return a.x - b.x; });
-      var conf = l.palavras.reduce(function (m, w) { return Math.min(m, w.conf); }, 100);
-      return { texto: l.palavras.map(function (w) { return w.texto; }).join(' '), palavras: l.palavras, conf: conf };
-    });
-  }
-
-  function lerTodoTexto() {
-    if (leituraTotal) return;
-    var img = imagemParaLer();
-    var caixa = $('leitura-total');
-    if (!img) {
-      caixa.innerHTML = '<p class="aviso-t">! Ligue a câmara ou tire uma fotografia primeiro.</p>';
-      return;
-    }
-    var minha = ++geracaoTotal, t0 = Date.now();
-    leituraTotal = { geracao: minha };
-    $('btn-ler-tudo').disabled = true;
-    caixa.innerHTML = '<div class="caixa">A ler o texto da imagem… <span class="nota">(' + esc(img.origem) + ')</span></div>' +
-      '<button class="perigo" id="btn-parar-texto">Parar</button>';
-    $('btn-parar-texto').addEventListener('click', pararLeituraTotal);
-    try { caixa.scrollIntoView({ block: 'nearest' }); } catch (e) {}
-    var tela = endireitar(img.tela, img.tela.width, img.tela.height);
-    var rapido = null;
-    comOCR(function () {
-      if (minha !== geracaoTotal) return null;
-      // Primeiro a leitura rápida do número (linha junto às barras), que nos testes acerta mais
-      var p0 = (sessao.tipo === 'PC' && dados.iniciosPC.length)
-        ? lerTextoRapido(img.tela, img.tela.width, img.tela.height).then(function (sr) { rapido = sr; }, function () {})
-        : prepararOCR();
-      return p0.then(function () {
-        if (minha !== geracaoTotal) throw new Error('parado');
-        return ocrWorker.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '11' });
-      }).then(function () {
-        return ocrWorker.recognize(tela, {}, { blocks: true, text: true, hocr: false, tsv: false });
-      }).then(function (r) {
-        var linhas = linhasDoResultado(r.data);
-        var letras = linhas.reduce(function (n, l) { return n + l.texto.replace(/[^A-Za-z0-9]/g, '').length; }, 0);
-        if (letras >= 4 || minha !== geracaoTotal) return linhas;
-        return ocrWorker.setParameters({ tessedit_pageseg_mode: '3' }).then(function () {
-          return ocrWorker.recognize(tela, {}, { blocks: true, text: true, hocr: false, tsv: false });
-        }).then(function (r2) { return linhasDoResultado(r2.data); });
-      }).then(function (linhas) {
-        // Repõe a leitura rápida (só A-Z e 0-9, uma linha)
-        return ocrWorker.setParameters({ tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', tessedit_pageseg_mode: '7' })
-          .then(function () { return linhas; });
-      });
-    }).then(function (linhas) {
-      if (minha !== geracaoTotal) return;
-      leituraTotal = null; $('btn-ler-tudo').disabled = false;
-      mostrarTextoTotal(linhas || [], (Date.now() - t0) / 1000, rapido);
-    }, function () {
-      if (minha !== geracaoTotal) return;
-      leituraTotal = null; $('btn-ler-tudo').disabled = false;
-      caixa.innerHTML = '<p class="erro-t">✗ Não consegui ler o texto. O leitor de texto não carregou neste navegador.</p>';
-    });
-  }
-
-  // Parar: a única forma de interromper o OCR a meio é fechar o trabalhador. Volta a abrir-se na próxima leitura.
-  function pararLeituraTotal() {
-    geracaoTotal++;
-    leituraTotal = null;
-    $('btn-ler-tudo').disabled = false;
-    try { if (ocrWorker) ocrWorker.terminate(); } catch (e) {}
-    ocrWorker = null; ocrPronto = null; ocrOcupado = false;
-    ocrFila = Promise.resolve();
-    $('leitura-total').innerHTML = '<p class="aviso-t">! Leitura parada.</p>';
-  }
-
   function segundos(s) { return s < 10 ? s.toFixed(1).replace('.', ',') : String(Math.round(s)); }
 
-  var ultimasLinhas = null, ultimoTempo = 0, mostrarIlegiveis = false;
-  var ultimoRapido = null;
-  function mostrarTextoTotal(todas, tempo, rapido) {
-    ultimasLinhas = todas; ultimoTempo = tempo; ultimoRapido = rapido || null;
-    var caixa = $('leitura-total');
-    var escondidas = 0;
-    var linhas = todas.map(function (l) {
-      var ps = mostrarIlegiveis ? l.palavras : l.palavras.filter(function (w) { if (w.ilegivel) escondidas++; return !w.ilegivel; });
-      var conf = ps.reduce(function (m, w) { return Math.min(m, w.conf); }, 100);
-      return { texto: ps.map(function (w) { return w.texto; }).join(' '), palavras: ps, conf: conf };
-    }).filter(function (l) { return l.palavras.length; });
-    var html = '<div class="linha-form"><h3 style="margin:0; flex:1 1 200px">Texto da imagem</h3>' +
-      '<button class="pequeno" id="btn-copiar-texto">Copiar todo o texto</button>' +
-      '<button class="pequeno" id="btn-fechar-texto">Fechar</button></div>' +
-      '<p class="nota">Li o texto em ' + segundos(tempo) + ' s. Toque numa linha inteira ou numa palavra para a usar como número.</p>';
-    if (escondidas) html += '<p class="nota">Escondi ' + escondidas + (escondidas === 1 ? ' palavra ilegível' : ' palavras ilegíveis') + ' (quase sempre riscos das barras). <button class="pequeno" id="btn-ilegiveis">Mostrar também</button></p>';
-    else if (mostrarIlegiveis) html += '<p class="nota"><button class="pequeno" id="btn-ilegiveis">Esconder as ilegíveis</button></p>';
-
-    // Candidatos a número de série (só quando há inícios definidos para o que se está a ler)
-    var cands = rapido ? [rapido] : [];
-    if (sessao.tipo === 'PC' && dados.iniciosPC.length) {
-      linhas.forEach(function (l) {
-        [l.texto].concat(l.palavras.map(function (w) { return w.texto; })).forEach(function (txt) {
-          var c = extrairSerie(txt);
-          if (c && cands.indexOf(c.serie) < 0) cands.push(c.serie);
-        });
-      });
-    }
-    if (cands.length) {
-      html += '<div class="caixa"><p style="margin:0 0 8px">Pode ser o número de série:</p>' +
-        cands.map(function (c, i) { return '<button class="principal texto-cand" data-i="' + i + '" style="margin:0 8px 8px 0; font-size:22px">' + esc(c) + '</button>'; }).join('') +
-        '</div>';
-    }
-    if (!linhas.length) html += '<p class="aviso-t">! Não encontrei mais texto legível nesta imagem.</p>';
-    html += '<ol class="texto-linhas">' + linhas.map(function (l, i) {
-      var segura = l.conf >= 75;
-      return '<li><div class="texto-linha">' +
-        '<button class="linha-toda" data-l="' + i + '">' + esc(l.texto) + '</button>' +
-        '<span class="' + (segura ? 'ok-t' : 'aviso-t') + ' nota">' + (segura ? '✓ Leitura segura' : '! Leitura duvidosa') + '</span></div>' +
-        (l.palavras.length > 1 ? '<div class="texto-palavras">' + l.palavras.map(function (w, j) {
-          return '<button class="pequeno palavra" data-l="' + i + '" data-w="' + j + '">' + esc(w.texto) + '</button>';
-        }).join('') + '</div>' : '') + '</li>';
-    }).join('') + '</ol>';
-    caixa.innerHTML = html;
-    ligarIlegiveis();
-    caixa.querySelectorAll('.texto-cand').forEach(function (b) {
-      b.addEventListener('click', function () { pedirConfirmacao(cands[+b.getAttribute('data-i')], 'Escolhido no texto da imagem'); });
-    });
-    caixa.querySelectorAll('.linha-toda').forEach(function (b) {
-      b.addEventListener('click', function () { pedirConfirmacao(linhas[+b.getAttribute('data-l')].texto, 'Escolhido no texto da imagem'); });
-    });
-    caixa.querySelectorAll('.palavra').forEach(function (b) {
-      b.addEventListener('click', function () { pedirConfirmacao(linhas[+b.getAttribute('data-l')].palavras[+b.getAttribute('data-w')].texto, 'Escolhido no texto da imagem'); });
-    });
-    ligarBotoesTexto(linhas);
-  }
-
-  function ligarIlegiveis() {
-    var b = $('btn-ilegiveis');
-    if (b) b.addEventListener('click', function () { mostrarIlegiveis = !mostrarIlegiveis; mostrarTextoTotal(ultimasLinhas, ultimoTempo, ultimoRapido); });
-  }
-  function ligarBotoesTexto(linhas) {
-    var todo = linhas.map(function (l) { return l.texto; }).join('\n');
-    $('btn-fechar-texto').addEventListener('click', function () { $('leitura-total').innerHTML = ''; });
-    $('btn-copiar-texto').addEventListener('click', function () {
-      var ok = function () { $('btn-copiar-texto').textContent = '✓ Copiado'; };
-      var alternativa = function () {
-        var ta = document.createElement('textarea');
-        ta.value = todo; ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta); ta.select();
-        try { document.execCommand('copy'); ok(); } catch (e) { $('btn-copiar-texto').textContent = '! Não consegui copiar'; }
-        document.body.removeChild(ta);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(todo).then(ok, alternativa);
-      else alternativa();
-    });
-  }
-  $('btn-ler-tudo').addEventListener('click', lerTodoTexto);
 
   // ---------- Ler a partir de uma fotografia (câmara do próprio tablet, com mais resolução e focagem) ----------
   // Opções mais leves para as primeiras tentativas (sem limpeza de ruído, que é a parte mais lenta)
@@ -4171,11 +3945,10 @@ var qrcode = function() {
     };
     aviso('A abrir a fotografia…');
     // O leitor do número escrito arranca já, em paralelo, para estar pronto se as barras falharem
-    if (sessao.tipo === 'PC' && dados.iniciosPC.length) prepararOCR().catch(function () {});
+    if (dados.iniciosPC.length) prepararOCR().catch(function () {});
     var url = URL.createObjectURL(ficheiro);
     var im = new Image();
     im.onload = function () {
-      guardarUltimaFoto(im);
       var maxAntes = MAX_LADO;
       var repor = function () { MAX_LADO = maxAntes; };
       var W = im.naturalWidth, H = im.naturalHeight;
@@ -4206,10 +3979,7 @@ var qrcode = function() {
           URL.revokeObjectURL(url);
           som(false);
           if (outrosCod.length) {
-            mostrarUltimo('aviso', '<p class="aviso-t">! Não encontrei o n.º de série na fotografia.</p>' +
-              '<p>Li só outros códigos da etiqueta, que não começam por ' + esc(listaInicios()) + ':</p>' +
-              '<div class="linha-form">' + outrosCod.map(function (s, k) { return '<button class="pequeno" id="u-outro' + k + '">Registar ' + esc(s) + '</button>'; }).join('') + '</div>' +
-              '<p>Tire outra fotografia mais perto do código por baixo de "S/N", ou escreva o número.</p>');
+            mostrarUltimo('aviso', perguntaHotspot(outrosCod));
             outrosCod.forEach(function (s, k) { $('u-outro' + k).addEventListener('click', function () { registar(s, 'manual', true); }); });
             return;
           }
@@ -4219,7 +3989,7 @@ var qrcode = function() {
           repor(); URL.revokeObjectURL(url); ultimoCod = ''; vistos = {}; escolherResultado(bons);
         };
         // Corre uma lista de tentativas; devolve uma Promise com os códigos lidos ou null
-        var ehPC = sessao.tipo === 'PC' && dados.iniciosPC.length;
+        var ehPC = dados.iniciosPC.length > 0;
         var outrosCod = []; // outros códigos da etiqueta (modelo, peça...): guardados para mostrar no fim
         var correr = function (lista) {
           var i = 0;
@@ -4232,8 +4002,9 @@ var qrcode = function() {
               window.ZXingWASM.readBarcodes(img, t.op).then(function (res) {
                 var bons = (res || []).filter(function (r) { return r && r.isValid && r.text; });
                 if (ehPC) {
-                  bons.forEach(function (r) { var s = norm(r.text); if (!eLocalQR(r.text) && !inicioValido(s) && outrosCod.indexOf(s) < 0) outrosCod.push(s); });
-                  bons = bons.filter(function (r) { return eLocalQR(r.text) || inicioValido(norm(r.text)); });
+                  var aceita = function (r) { var s = norm(r.text); return eLocalQR(r.text) || inicioValido(s) || (dados.iniciosHS.length && hsConhecido(s)); };
+                  bons.forEach(function (r) { var s = norm(r.text); if (!aceita(r) && outrosCod.indexOf(s) < 0) outrosCod.push(s); });
+                  bons = bons.filter(aceita);
                 }
                 if (bons.length) ok(bons); else setTimeout(seguinte, 0);
               }, function () { setTimeout(seguinte, 0); });
@@ -4254,6 +4025,8 @@ var qrcode = function() {
             correr(fase3).then(function (b3) { repor(); if (b3) encontrou(b3); else falhou(); });
           };
           if (!ehPC) { ultimaFase(); return; }
+          // Só há códigos que não são de PC: é um hotspot, ou o S/N do PC não se leu. Pergunta.
+          if (outrosCod.length) { falhou(); return; }
           aviso('As barras não se leem. A ler o número escrito…');
           lerTexto(im, W, H).then(function (sr) {
             if (minha !== geracaoFoto) return;
@@ -4290,11 +4063,18 @@ var qrcode = function() {
           var fonte = new Z.HTMLCanvasElementLuminanceSource(tela);
           var r = leitor.decode(new Z.BinaryBitmap(b ? new Z.GlobalHistogramBinarizer(fonte) : new Z.HybridBinarizer(fonte)));
           if (r && inicioValido(norm(r.getText()))) return r.getText();
-          if (r && sessao.tipo !== 'PC') return r.getText();
+          if (r && !dados.iniciosPC.length) return r.getText();
         } catch (e) { /* nada nesta tentativa */ }
       }
     }
     return null;
+  }
+
+  function perguntaHotspot(cods) {
+    return '<p class="aviso-t">! Não li nenhum n.º de série de PC na fotografia.</p>' +
+      '<p>Li ' + (cods.length === 1 ? 'este código' : 'estes códigos') + ', que não ' + (cods.length === 1 ? 'começa' : 'começam') + ' por ' + esc(listaInicios()) + '. Se for um hotspot, toque no número dele:</p>' +
+      '<div class="linha-form">' + cods.map(function (s, k) { return '<button class="pequeno" id="u-outro' + k + '">Registar ' + esc(s) + ' como hotspot</button>'; }).join('') + '</div>' +
+      '<p>Se for um PC, tire outra fotografia mais perto do código por baixo de "S/N", ou escreva o número.</p>';
   }
 
   $('btn-foto').addEventListener('click', function () { pararCamara(); $('ficheiro-foto').click(); });
@@ -4312,62 +4092,50 @@ var qrcode = function() {
     }
     var series = [];
     bons.forEach(function (r) { var s = norm(r.text); if (s && series.indexOf(s) < 0) series.push(s); });
-    if (MODO_SITE) { if (series.length > 1) registarVarios(series); else registar(series[0], 'camara'); return; }
     var validos = series.filter(inicioValido);
-    // Várias etiquetas na mesma imagem (só PC, onde se sabe qual é o n.º de série)
-    if (sessao.tipo === 'PC' && dados.iniciosPC.length && validos.length > 1) { registarVarios(validos); return; }
-    registar(validos[0] || series[0], 'camara');
+    // Várias etiquetas de PC na mesma imagem
+    if (validos.length > 1) { registarVarios(validos); return; }
+    if (validos.length) { registar(validos[0], 'camara'); return; }
+    // Só códigos que não são de PC: é um hotspot, a não ser que um PC tenha sido lido há pouco (outro código da mesma etiqueta)
+    if (Date.now() - ultimoPC < 4000) return;
+    var conhecidos = series.filter(hsConhecido);
+    registar(conhecidos[0] || series[0], 'camara');
   }
 
   // Regista vários n.º de série lidos na mesma imagem e mostra um resumo
   function registarVarios(series) {
     var agora = Date.now();
-    series = series.filter(function (s) { return !jaVisto(s, agora) && !hotspotIncerto(s, agora); });
+    series = series.filter(function (s) { return !jaVisto(s, agora); });
     ultimoSucesso = agora; confirmPendente = false;
     if (!series.length) return;
     if (series.length === 1) { delete vistos[series[0]]; registar(series[0], 'camara'); return; }
     ultimoCod = series[series.length - 1]; ultimoT = agora;
-    var alvo = { local: sessao.local, estado: sessao.estado, tipo: sessao.tipo };
-    var r = { novos: [], iguais: [], outros: [], movidos: [], uns: [], alvo: alvo };
-    series = series.filter(function (s) { return !ignorados[s]; });
-    r.uns = series.filter(comecaPor1).map(function (x) { return { serie: x, tipo: tipoDe(x) }; });
-    series = series.filter(function (s) { return !comecaPor1(s); });
+    var alvo = { local: sessao.local, estado: sessao.estado, tipo: 'PC' };
+    ultimoPC = agora;
+    var r = { novos: [], iguais: [], outros: [], movidos: [], alvo: alvo };
     series.forEach(function (s) {
       var ex = procurar(s);
       if (!ex) {
-        var item = { serie: s, tipo: MODO_SITE ? tipoDe(s) : alvo.tipo, local: alvo.local, estado: alvo.estado, quando: new Date().toISOString() };
+        var item = { serie: s, tipo: alvo.tipo, local: alvo.local, estado: alvo.estado, quando: new Date().toISOString() };
         dados.itens.push(item); lidosSessao.unshift(item); r.novos.push(item);
-      } else if (ex.local === alvo.local && ex.estado === alvo.estado && ex.tipo === (MODO_SITE ? tipoDe(s) : alvo.tipo)) r.iguais.push(ex);
+      } else if (ex.local === alvo.local && ex.estado === alvo.estado && ex.tipo === alvo.tipo) r.iguais.push(ex);
       else r.outros.push(ex);
     });
     if (r.novos.length) guardar();
-    som(r.novos.length > 0 && !r.outros.length && !r.uns.length);
+    som(r.outros.length ? false : r.novos.length ? (r.novos.every(naLista) ? true : false) : 'repetido');
     mostrarVarios(r);
     atualizarContagens();
   }
 
   function mostrarVarios(r) {
     var a = r.alvo, n = r.novos.length;
-    r.uns = r.uns || [];
-    var temDuvidas = r.outros.length || r.uns.length;
-    var lidos = n + r.iguais.length + r.outros.length + r.movidos.length;
     var lista = function (itens, extra) {
-      return '<ul>' + itens.map(function (it, k) { return '<li><b class="serie">' + esc(it.serie) + '</b>' + (MODO_SITE ? ' (' + esc(it.tipo) + ')' : '') + (extra ? extra(it, k) : '') + '</li>'; }).join('') + '</ul>';
+      return '<ul>' + itens.map(function (it, k) { return '<li><b class="serie">' + esc(it.serie) + '</b>' + alunoCurto(it.serie) + (extra ? extra(it, k) : '') + '</li>'; }).join('') + '</ul>';
     };
-    var html = lidos + r.uns.length > 1 ? '<p class="' + (temDuvidas ? 'aviso-t' : 'ok-t') + '">' + (temDuvidas ? '! ' : '✓ ') +
-      'Li ' + (lidos + r.uns.length) + ' códigos de uma vez</p>' : '';
-    if (r.uns.length) {
-      var um = r.uns.length === 1, todos1 = r.uns.every(function (u) { return /^1/.test(u.serie); });
-      html += '<p class="aviso-t">! ' + (todos1
-        ? (um ? 'Este código começa' : 'Estes códigos começam') + ' por 1. Normalmente não é o n.º de série.'
-        : (um ? 'Este código não parece' : 'Estes códigos não parecem') + ' um n.º de série de PC nem de hotspot.') + '</p>' +
-        '<p>É o que quer registar?</p>' +
-        lista(r.uns, function (it, k) {
-          return ' <button class="pequeno principal" id="v-um-sim' + k + '">Sim, registar</button> <button class="pequeno" id="v-um-nao' + k + '">Não, ignorar</button>';
-        });
-    }
+    var html = '<p class="' + (r.outros.length ? 'aviso-t' : 'ok-t') + '">' + (r.outros.length ? '! ' : '✓ ') +
+      'Li ' + (n + r.iguais.length + r.outros.length + r.movidos.length) + ' n.º de série de uma vez</p>';
     if (n) {
-      html += '<p><b>✓ Registados (' + n + '):</b> ' + (MODO_SITE ? '' : esc(a.tipo) + ' · ') + esc(a.local) + ' · ' + esc(r.novos[0].estado) + '</p>' + lista(r.novos) +
+      html += '<p><b>✓ Registados (' + n + '):</b> ' + esc(a.tipo) + ' · ' + esc(a.local) + ' · ' + esc(r.novos[0].estado) + '</p>' + lista(r.novos) +
         '<div class="linha-form"><label for="v-estado" style="align-self:center">Mudar o estado ' + (n === 1 ? 'deste' : 'destes ' + n) + ':</label>' +
         '<select id="v-estado">' + opcoesEstado(r.novos[0].estado) + '</select></div>' +
         '<div class="linha-form"><button class="pequeno perigo" id="v-anular">Anular ' + (n === 1 ? 'esta leitura' : 'estas ' + n + ' leituras') + '</button></div>';
@@ -4381,27 +4149,9 @@ var qrcode = function() {
       });
       if (r.outros.length > 1) html += '<div class="linha-form"><button class="pequeno principal" id="v-mover-todos">Passar todos para ' + esc(a.local) + ', ' + esc(a.estado) + '</button></div>';
     }
-    mostrarUltimo(temDuvidas ? 'aviso' : 'ok', html);
-    r.uns.forEach(function (u, k) {
-      $('v-um-sim' + k).addEventListener('click', function () {
-        r.uns = r.uns.filter(function (x) { return x !== u; });
-        var ex = procurar(u.serie);
-        if (!ex) {
-          var item = { serie: u.serie, tipo: tipoDe(u.serie), local: a.local, estado: a.estado, quando: new Date().toISOString() };
-          dados.itens.push(item); lidosSessao.unshift(item); r.novos.push(item); guardar(); som(true);
-        } else if (ex.local === a.local && ex.estado === a.estado) r.iguais.push(ex);
-        else r.outros.push(ex);
-        mostrarVarios(r); atualizarContagens();
-      });
-      $('v-um-nao' + k).addEventListener('click', function () {
-        ignorados[u.serie] = 1;
-        r.uns = r.uns.filter(function (x) { return x !== u; });
-        if (lidos || r.uns.length) mostrarVarios(r);
-        else mostrarUltimo('ok', '<p class="ok-t">✓ Ignorado: ' + esc(u.serie) + '. Não volto a perguntar por este código.</p>');
-      });
-    });
+    mostrarUltimo(r.outros.length ? 'aviso' : 'ok', html);
     var mover = function (ex) {
-      ex.local = a.local; ex.estado = a.estado; ex.tipo = MODO_SITE ? tipoDe(ex.serie) : a.tipo; ex.quando = new Date().toISOString();
+      ex.local = a.local; ex.estado = a.estado; ex.tipo = a.tipo; ex.quando = new Date().toISOString();
       if (lidosSessao.indexOf(ex) < 0) lidosSessao.unshift(ex);
       r.outros = r.outros.filter(function (x) { return x !== ex; }); r.movidos.push(ex);
     };
@@ -4601,9 +4351,14 @@ var qrcode = function() {
       td.innerHTML = 'Apagar? <button class="pequeno perigo" data-ac="sim-apagar" data-s="' + esc(it.serie) + '">Sim, apagar</button> ' +
         '<button class="pequeno" data-ac="nao-apagar" data-s="' + esc(it.serie) + '">Não</button>';
     } else if (b.getAttribute('data-ac') === 'sim-apagar') {
+      var pos = dados.itens.indexOf(it);
       dados.itens = dados.itens.filter(function (x) { return x !== it; });
       lidosSessao = lidosSessao.filter(function (x) { return x !== it; });
       guardar(); desenharLista(); atualizarContagens();
+      avisarDesfazer('✓ Apagado: ' + it.serie + '.', function () {
+        if (procurar(it.serie)) return;
+        dados.itens.splice(Math.min(pos, dados.itens.length), 0, it);
+      });
     } else if (b.getAttribute('data-ac') === 'nao-apagar') {
       desenharLista();
     }
@@ -4643,40 +4398,68 @@ var qrcode = function() {
     return base + '_' + dois(d.getDate()) + '-' + dois(d.getMonth() + 1) + '-' + d.getFullYear() + '_' + dois(d.getHours()) + 'h' + dois(d.getMinutes()) + '.xlsx';
   }
   function exportar() {
-    if (!dados.itens.length && !resultado) { avisar('! Ainda não há nada para exportar.'); return; }
+    if (!dados.itens.length) { avisar('! Ainda não há nada para exportar.'); return; }
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, folha(CAB_INV, linhasInv(dados.itens), [22, 10, 20, 20, 12, 8]), 'Inventário');
-    if (resultado) {
-      XLSX.utils.book_append_sheet(wb, folha(CAB_ESC, resultado.naEscola.map(linhaEsc), [22, 10, 20, 20, 10, 12, 30, 8, 18, 18]), 'Na escola');
-      XLSX.utils.book_append_sheet(wb, folha(CAB_NAO, resultado.naoLidos.map(linhaNao), [10, 12, 30, 8, 10, 22, 18, 30]), 'Não lidos');
-      XLSX.utils.book_append_sheet(wb, folha(CAB_INV, linhasInv(resultado.semRegisto), [22, 10, 20, 20, 12, 8]), 'Lidos sem registo');
-    }
+    var defs = dados.iniciosPC.map(function (v) { return ['Início PC', v]; })
+      .concat(dados.iniciosHS.map(function (v) { return ['Início hotspot', v]; }))
+      .concat(dados.locaisExtra.map(function (v) { return ['Local', v]; }))
+      .concat(dados.estadosExtra.map(function (v) { return ['Estado', v]; }));
+    XLSX.utils.book_append_sheet(wb, folha(['Definição', 'Valor'], defs, [14, 30]), 'Definições');
     var nome = nomeFicheiro('Inventario');
-    if (window.claude && window.claude.use) {
-      var dadosX;
-      try { dadosX = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }); }
-      catch (e) { avisar('✗ Não consegui criar o Excel. Tente de novo.', 'erro'); return; }
-      window.claude.use('downloads').then(function (dl) {
-        if (!dl) { avisar('✗ Esta página não pode guardar ficheiros neste aparelho.', 'erro'); return; }
-        return dl.save({ filename: nome, data: dadosX }).then(function () {
-          marcarExportacao();
-          avisar('✓ Excel enviado: ' + nome + '. No iPhone, escolha "Guardar em Ficheiros".', 'ok');
+    var dica = ' Guarde em "No meu iPhone".';
+    var dadosX;
+    try { dadosX = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }); }
+    catch (e) { avisar('✗ Não consegui criar o Excel. Tente de novo.', 'erro'); return; }
+    var ficheiro = null;
+    try { ficheiro = new File([dadosX], nome, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); } catch (e) {}
+    // No iPhone, a partilha abre o menu com "Guardar em Ficheiros". Funciona também na app do ecrã principal.
+    if (ficheiro && navigator.canShare && navigator.share) {
+      var podePartilhar = false;
+      try { podePartilhar = navigator.canShare({ files: [ficheiro] }); } catch (e) {}
+      if (podePartilhar) {
+        navigator.share({ files: [ficheiro] }).then(function () {
+          marcarExportado();
+          avisar('✓ Excel guardado: ' + nome + '.' + dica, 'ok');
         }, function (e) {
-          if (e && e.code === 'declined') avisar('! Exportação cancelada.');
-          else if (e && e.code === 'rate_limited') avisar('! Já há um pedido de gravação aberto. Responda a esse primeiro.');
-          else avisar('✗ Não consegui guardar o Excel (' + (e && e.code || 'erro') + ').', 'erro');
+          if (e && e.name === 'AbortError') avisar('! Exportação cancelada. O registo continua sem cópia.');
+          else transferir();
         });
-      });
-      return;
+        return;
+      }
     }
-    try {
-      XLSX.writeFile(wb, nome);
-      marcarExportacao();
-    } catch (e) {
-      avisar('✗ Não consegui criar o Excel. Tente de novo.', 'erro');
+    transferir();
+    function transferir() {
+      try {
+        XLSX.writeFile(wb, nome);
+        marcarExportado();
+        avisar('✓ Excel criado: ' + nome + '. Toque em "Transferir" e escolha "Guardar em Ficheiros".' + dica, 'ok');
+      } catch (e) {
+        avisar('✗ Não consegui criar o Excel. Tente de novo.', 'erro');
+      }
     }
   }
   $('btn-exportar').addEventListener('click', exportar);
+
+
+  // ---------- Lembrete da cópia em Excel ----------
+  // O registo só está neste navegador. Pede uma cópia depois de 30 alterações ou de 12 horas com alterações por guardar.
+  var LIMITE_MUDANCAS = 30, LIMITE_TEMPO = 12 * 3600 * 1000;
+  function marcarExportado() {
+    dados.exportado = Date.now(); dados.mudancas = 0; dados.primeiraMudanca = 0;
+    guardar(true);
+  }
+  function desenharLembrete() {
+    var c = $('lembrete');
+    var n = dados.mudancas || 0;
+    var precisa = dados.itens.length && n > 0 && (n >= LIMITE_MUDANCAS || Date.now() - (dados.primeiraMudanca || 0) > LIMITE_TEMPO);
+    if (!precisa) { c.hidden = true; return; }
+    var quando = dados.exportado ? 'A última cópia foi a ' + dataTxt(new Date(dados.exportado).toISOString()) + ', às ' + horaTxt(new Date(dados.exportado).toISOString()) + '.' : 'Ainda não fez nenhuma cópia.';
+    c.innerHTML = '<p>! Faça uma cópia em Excel. Há ' + n + (n === 1 ? ' alteração' : ' alterações') + ' que só estão neste navegador. ' + quando + '</p>' +
+      '<button class="principal" id="btn-lembrete">Guardar Excel agora</button>';
+    c.hidden = false;
+    $('btn-lembrete').addEventListener('click', exportar);
+  }
 
   // ---------- Importar cópia ----------
   $('btn-importar').addEventListener('click', function () { $('ficheiro-importar').click(); });
@@ -4692,7 +4475,17 @@ var qrcode = function() {
       var ci = function (k) { return cab.indexOf(k); };
       var cs = cab.findIndex(function (k) { return /serie/.test(k); }), ct = ci('tipo'), cl = ci('local'), ce = ci('estado'), cd = ci('data'), ch = ci('hora');
       if (cs < 0 || cl < 0) { avisar('✗ Este Excel não foi exportado por esta ferramenta. Falta a coluna "N.º de série" ou "Local".', 'erro'); return; }
-      var novos = 0, atual = 0, maxImport = 0;
+      var novos = 0, atual = 0, defs = 0;
+      if (wb.Sheets['Definições']) {
+        XLSX.utils.sheet_to_json(wb.Sheets['Definições'], { header: 1, raw: false, defval: '' }).slice(1).forEach(function (r) {
+          var k = chaveCab(r[0]), v = String(r[1] || '').trim();
+          if (!v) return;
+          if (k === 'iniciopc') { v = norm(v); if (dados.iniciosPC.indexOf(v) < 0) { dados.iniciosPC.push(v); defs++; } }
+          else if (k === 'iniciohotspot') { v = norm(v); if (dados.iniciosHS.indexOf(v) < 0) { dados.iniciosHS.push(v); defs++; } }
+          else if (k === 'local' && locais().indexOf(v) < 0) { dados.locaisExtra.push(v); defs++; }
+          else if (k === 'estado' && estados().indexOf(v) < 0) { dados.estadosExtra.push(v); defs++; }
+        });
+      }
       rows.slice(1).forEach(function (r) {
         var serie = norm(r[cs]);
         if (serie.length < 4) return;
@@ -4704,15 +4497,12 @@ var qrcode = function() {
         if (estado && estados().indexOf(estado) < 0) dados.estadosExtra.push(estado);
         var local = String(r[cl] || '').trim();
         if (local && locais().indexOf(local) < 0) dados.locaisExtra.push(local);
-        maxImport = Math.max(maxImport, new Date(quando).getTime());
         var ex = procurar(serie);
         if (!ex) { dados.itens.push({ serie: serie, tipo: tipo, local: local, estado: estado, quando: quando }); novos++; }
         else if (new Date(quando) > new Date(ex.quando)) { ex.tipo = tipo; ex.local = local; ex.estado = estado; ex.quando = quando; atual++; }
       });
-      // O que veio de um Excel já está guardado nesse Excel
-      if (maxImport > (dados.ultimaExportacao || 0)) dados.ultimaExportacao = maxImport;
-      guardar(); desenharLista(); atualizarContagens();
-      avisar('✓ Importação feita. ' + novos + ' novos, ' + atual + ' atualizados com dados mais recentes.', 'ok');
+      guardar(); desenharLista(); atualizarContagens(); desenharInicios(); desenharPerguntas();
+      avisar('✓ Importação feita. ' + novos + ' novos, ' + atual + ' atualizados com dados mais recentes.' + (defs ? ' Também vieram ' + defs + ' definições (inícios dos PC, locais ou estados).' : ''), 'ok');
     });
   });
 
@@ -4722,8 +4512,13 @@ var qrcode = function() {
     c.innerHTML = '<p class="aviso-t">! Vai apagar ' + dados.itens.length + ' registos deste aparelho. Isto não se pode desfazer. Já exportou para Excel?</p>' +
       '<div class="linha-form"><button class="perigo" id="sim-apagar-tudo">Sim, apagar tudo</button><button id="nao-apagar-tudo">Não</button></div>';
     $('sim-apagar-tudo').addEventListener('click', function () {
-      dados.itens = []; lidosSessao = []; guardar(); desenharLista(); atualizarContagens();
-      c.innerHTML = '<p class="ok-t">✓ Registo apagado.</p>';
+      var copia = { itens: dados.itens, sessao: lidosSessao, mudancas: dados.mudancas, primeira: dados.primeiraMudanca };
+      dados.itens = []; lidosSessao = []; dados.mudancas = 0; dados.primeiraMudanca = 0; guardar(true); desenharLista(); atualizarContagens();
+      c.innerHTML = '';
+      avisarDesfazer('✓ Registo apagado (' + copia.itens.length + ' equipamentos).', function () {
+        copia.itens.forEach(function (x) { if (!procurar(x.serie)) dados.itens.push(x); });
+        lidosSessao = copia.sessao; dados.mudancas = copia.mudancas; dados.primeiraMudanca = copia.primeira;
+      });
     });
     $('nao-apagar-tudo').addEventListener('click', function () { c.innerHTML = ''; });
   });
@@ -4738,7 +4533,7 @@ var qrcode = function() {
     r.readAsArrayBuffer(f);
   }
 
-  // ---------- 3. Comparar ----------
+  // ---------- Ficheiros da lista de equipamento ----------
   var CAMPOS = [
     { id: 'pc', rot: 'PC (n.º de série)' },
     { id: 'hotspot', rot: 'Hotspot' },
@@ -4761,7 +4556,6 @@ var qrcode = function() {
   }
 
   var ficheiros = []; // {nome, fase, wb, folha, linhaCab, cols:{pc:idx...}}
-  var resultado = null;
 
   function detetarFolha(wb, nomeFolha) {
     var rows = XLSX.utils.sheet_to_json(wb.Sheets[nomeFolha], { header: 1, raw: false, defval: '' });
@@ -4782,7 +4576,6 @@ var qrcode = function() {
     return m ? 'Fase ' + m[1] : n.replace(/\.[^.]+$/, '');
   }
 
-  $('btn-carregar-eq').addEventListener('click', function () { $('ficheiro-eq').click(); });
   $('ficheiro-eq').addEventListener('change', function () {
     var fs = Array.prototype.slice.call(this.files);
     this.value = '';
@@ -4795,14 +4588,10 @@ var qrcode = function() {
         });
         ficheiros = ficheiros.filter(function (x) { return x.nome !== f.name; });
         ficheiros.push({ nome: f.name, fase: faseDoNome(f.name), wb: wb, folha: escolhida, rows: det.rows, linhaCab: det.linha, cols: det.cols });
-        resultado = null;
         desenharFicheiros();
-        $('resultado-comp').innerHTML = '';
+        atualizarRef();
       });
     });
-  });
-  $('btn-limpar-eq').addEventListener('click', function () {
-    ficheiros = []; resultado = null; desenharFicheiros(); $('resultado-comp').innerHTML = '';
   });
 
   function desenharFicheiros() {
@@ -4835,16 +4624,13 @@ var qrcode = function() {
       d.innerHTML = html;
       c.appendChild(d);
     });
-    var algum = ficheiros.some(function (fi) { return fi.cols.pc !== undefined || fi.cols.hotspot !== undefined; });
-    $('btn-comparar').disabled = !algum;
-    $('btn-limpar-eq').disabled = !ficheiros.length;
   }
 
   $('lista-ficheiros').addEventListener('change', function (e) {
     var t = e.target, n = t.getAttribute('data-f');
     if (n === null) return;
     var fi = ficheiros[+n], k = t.getAttribute('data-k');
-    if (k === 'fase') { fi.fase = t.value.trim() || fi.nome; resultado = null; return; }
+    if (k === 'fase') { fi.fase = t.value.trim() || fi.nome; atualizarRef(); return; }
     if (k === 'folha') {
       var d = detetarFolha(fi.wb, t.value);
       fi.folha = t.value; fi.rows = d.rows; fi.linhaCab = d.linha; fi.cols = d.cols;
@@ -4855,22 +4641,9 @@ var qrcode = function() {
       var cid = t.getAttribute('data-c');
       if (t.value === '') delete fi.cols[cid]; else fi.cols[cid] = +t.value;
     }
-    resultado = null;
-    $('resultado-comp').innerHTML = '';
     desenharFicheiros();
+    atualizarRef();
   });
-
-  function nifValido(n) {
-    if (!/^[0-9]{9}$/.test(n)) return false;
-    var s = 0;
-    for (var i = 0; i < 8; i++) s += +n.charAt(i) * (9 - i);
-    var r = s % 11, c = r < 2 ? 0 : 11 - r;
-    return c === +n.charAt(8);
-  }
-  function notaNif(e) {
-    var maus = (e.nif || '').split(' / ').filter(function (n) { return n && !nifValido(n); });
-    return maus.length ? 'NIF inválido: ' + maus.join(', ') : '';
-  }
 
   function juntar(a, b) {
     if (!b || a === b) return a;
@@ -4906,121 +4679,173 @@ var qrcode = function() {
     return { mapa: mapa, lista: lista };
   }
 
-  var CAB_ESC = ['N.º de série', 'Tipo lido', 'Local', 'Estado (inventário)', 'Fase', 'NIF', 'Nome', 'Turma', 'Estado (ficheiro)', 'Nota'];
-  var CAB_NAO = ['Fase', 'NIF', 'Nome', 'Turma', 'Tipo', 'N.º de série', 'Estado (ficheiro)', 'Nota'];
-  function linhaEsc(x) { return [x.lido.serie, x.lido.tipo, x.lido.local, x.lido.estado, x.eq.fase, x.eq.nif, x.eq.nome, x.eq.turma, x.eq.estado, x.nota]; }
-  function linhaNao(e) { return [e.fase, e.nif, e.nome, e.turma, e.tipo, e.serie, e.estado, juntar(e.repetido ? 'Este n.º de série está atribuído a mais do que um aluno nos ficheiros' : '', notaNif(e))]; }
-
-  $('btn-comparar').addEventListener('click', function () {
-    var eq = construirEquipamento();
-    if (!eq.lista.length) { avisar('! Não encontrei números de série nos ficheiros. Confirme as colunas em "Corrigir colunas".'); return; }
-    var usados = {}, naEscola = [], semRegisto = [];
-    dados.itens.forEach(function (it) {
-      var e = eq.mapa[it.serie], nota = '';
-      if (!e) {
-        // Etiquetas com prefixo (por exemplo, 1S + modelo + n.º de série)
-        for (var i = 0; i < eq.lista.length; i++) {
-          var c = eq.lista[i];
-          if (c.serie.length >= 6 && it.serie.length > c.serie.length && it.serie.slice(-c.serie.length) === c.serie) { e = c; nota = 'Código lido com prefixo'; break; }
-        }
-      }
-      if (e) {
-        if (e.repetido) nota = juntar(nota, 'Este n.º de série está atribuído a mais do que um aluno nos ficheiros');
-        if (e.tipo !== it.tipo) nota = juntar(nota, 'Lido como ' + it.tipo + ', no ficheiro é ' + e.tipo);
-        if (usados[e.serie]) nota = juntar(nota, 'Mais do que um código lido corresponde a este equipamento');
-        nota = juntar(nota, notaNif(e));
-        usados[e.serie] = 1;
-        naEscola.push({ lido: it, eq: e, nota: nota });
-      } else semRegisto.push(it);
+  // ---------- Lista de equipamento durante a leitura ----------
+  // Serve para mostrar o aluno de cada equipamento lido e apanhar números mal lidos.
+  // Proteção de dados: guarda só o n.º de série, o tipo, o nome e a turma (nunca o NIF).
+  // Fica na memória e em sessionStorage, que o navegador apaga quando se fecha o separador.
+  // Não entra no registo, na exportação do inventário nem na conta Claude.
+  var CHAVE_REF = 'inventario_lista_ref';
+  var ref = null; // { itens: { serie: { t, n, tu } }, n, fontes }
+  var trocaAtual = null; // leitura que pode ser trocada por um número parecido da lista
+  function carregarRef() {
+    try { var t = sessionStorage.getItem(CHAVE_REF); ref = t ? JSON.parse(t) : null; } catch (e) { ref = null; }
+  }
+  function atualizarRef() {
+    ref = null;
+    if (ficheiros.length) {
+      var eq = construirEquipamento(), itens = {};
+      eq.lista.forEach(function (e) { itens[e.serie] = { t: e.tipo, n: e.nome, tu: e.turma }; });
+      if (eq.lista.length) ref = { itens: itens, n: eq.lista.length, fontes: ficheiros.map(function (f) { return f.fase; }) };
+    }
+    try { if (ref) sessionStorage.setItem(CHAVE_REF, JSON.stringify(ref)); else sessionStorage.removeItem(CHAVE_REF); } catch (e) {}
+    desenharRef();
+    if (ficheiros.length && !ref) avisar('! Não encontrei a coluna do n.º de série no ficheiro. Escolha-a em "Corrigir colunas", por baixo da lista.');
+  }
+  function desenharRef() {
+    $('ref-estado').textContent = ref
+      ? '✓ Lista de equipamento carregada: ' + ref.n + ' equipamentos (' + ref.fontes.join(', ') + '). Ao ler, aparece o aluno. A lista apaga-se quando fechar este separador.'
+      : 'Opcional: carregue o Excel do equipamento atribuído para ver o aluno de cada PC e apanhar números mal lidos. Pode escolher vários ficheiros de uma vez. A lista não fica guardada.';
+    $('btn-ref-retirar').classList.toggle('escondido', !ref);
+  }
+  // Procura na lista, também com prefixo (etiquetas com 1S + modelo + n.º de série)
+  function procurarRef(serie) {
+    if (!ref) return null;
+    if (ref.itens[serie]) return { serie: serie, e: ref.itens[serie] };
+    for (var k in ref.itens) {
+      if (k.length >= 6 && serie.length > k.length && serie.slice(-k.length) === k) return { serie: k, e: ref.itens[k] };
+    }
+    return null;
+  }
+  function naLista(item) { return !ref || !!procurarRef(item.serie); }
+  // Números da lista com o mesmo comprimento e só 1 ou 2 caracteres diferentes (por exemplo, H lido como 1)
+  function parecidos(serie) {
+    var r = [];
+    if (!ref) return r;
+    Object.keys(ref.itens).forEach(function (k) {
+      if (k.length !== serie.length) return;
+      var d = 0;
+      for (var i = 0; i < k.length && d <= 2; i++) if (k.charAt(i) !== serie.charAt(i)) d++;
+      if (d <= 2) r.push({ serie: k, d: d });
     });
-    var naoLidos = eq.lista.filter(function (e) { return !usados[e.serie]; });
-    resultado = { naEscola: naEscola, naoLidos: naoLidos, semRegisto: semRegisto, total: eq.lista.length };
-    desenharResultado();
+    return r.sort(function (a, b) { return a.d - b.d; }).slice(0, 3).map(function (x) { return x.serie; });
+  }
+  function quemTem(e) {
+    if (!e.n) return 'na lista, sem aluno';
+    return e.n + (e.tu ? ' · Turma ' + e.tu : '');
+  }
+  // Linha com o aluno, ou aviso se o número não estiver na lista (com números parecidos, se sugerir)
+  function htmlAluno(serie, sugerir) {
+    if (!ref) return '';
+    var r = procurarRef(serie);
+    if (r) return '<p class="aluno ok-t">✓ ' + (r.e.n ? 'Aluno: ' : 'Equipamento ') + esc(quemTem(r.e)) + '</p>';
+    var html = '<p class="aviso-t">! Este número não está na lista de equipamento. Confirme a etiqueta.</p>';
+    var ps = sugerir ? parecidos(serie) : [];
+    if (ps.length) {
+      html += '<p>Na lista há ' + (ps.length === 1 ? 'um número parecido' : 'números parecidos') + '. Se a etiqueta tiver um destes, toque nele:</p><div class="linha-form">' +
+        ps.map(function (p) { return '<button class="pequeno u-parecido" data-s="' + esc(p) + '">É o ' + esc(p) + ' (' + esc(quemTem(ref.itens[p])) + ')</button>'; }).join('') + '</div>';
+    }
+    return html;
+  }
+  function alunoCurto(serie) {
+    if (!ref) return '';
+    var r = procurarRef(serie);
+    return r ? ' — ' + esc(quemTem(r.e)) : ' <span class="aviso-t">— ! não está na lista</span>';
+  }
+  // Tocar num número parecido: troca a leitura errada pelo número da lista
+  $('ultimo').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.u-parecido') : null;
+    if (!b) return;
+    var certo = b.getAttribute('data-s'), errado = trocaAtual;
+    confirmPendente = false;
+    if (errado) {
+      dados.itens = dados.itens.filter(function (x) { return x !== errado; });
+      lidosSessao = lidosSessao.filter(function (x) { return x !== errado; });
+      guardar(true);
+    }
+    vistos = {}; ultimoCod = '';
+    registar(certo, 'manual', true);
+  });
+  $('btn-ref-carregar').addEventListener('click', function () { $('ficheiro-eq').click(); });
+  $('btn-ref-retirar').addEventListener('click', function () {
+    ficheiros = []; desenharFicheiros();
+    atualizarRef();
   });
 
-  function desenharResultado() {
-    var r = resultado;
-    var turmas = {};
-    r.naoLidos.concat(r.naEscola.map(function (x) { return x.eq; })).forEach(function (e) { if (e.turma) turmas[e.turma] = 1; });
-    var html = '<h2>Resultado</h2>' +
-      '<div class="caixa">' + r.naoLidos.length + ' equipamentos dos ficheiros não foram lidos na escola.</div>' +
-      '<div class="contagens"><div>No ficheiro: <b>' + r.total + '</b></div><div>✓ Na escola: <b>' + r.naEscola.length +
-      '</b></div><div>! Não lidos: <b>' + r.naoLidos.length + '</b></div><div>! Lidos sem registo: <b>' + r.semRegisto.length + '</b></div></div>' +
-      '<div class="linha-form"><input type="text" id="c-pesq" placeholder="Pesquisar nome, NIF ou n.º de série">' +
-      '<select id="c-turma"><option value="">Todas as turmas</option>' + Object.keys(turmas).sort().map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select>' +
-      '<select id="c-tipo"><option value="">PC e hotspots</option><option>PC</option><option>Hotspot</option></select></div>' +
-      '<div class="linha-form"><button class="principal" id="c-exportar">Exportar para Excel</button></div>' +
-      '<div id="c-tabelas"></div>';
-    $('resultado-comp').innerHTML = html;
-    ['c-pesq', 'c-turma', 'c-tipo'].forEach(function (id) { $(id).addEventListener(id === 'c-pesq' ? 'input' : 'change', desenharTabelasComp); });
-    $('c-exportar').addEventListener('click', exportar);
-    desenharTabelasComp();
-  }
-
-  function tabela(cab, linhas, colSerie) {
-    if (!linhas.length) return '<p>Nenhum.</p>';
-    return '<div class="tabela-wrap"><table><thead><tr>' + cab.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') +
-      '</tr></thead><tbody>' + linhas.map(function (l) {
-        return '<tr>' + l.map(function (v, i) { return '<td' + (i === colSerie ? ' class="serie"' : '') + '>' + esc(v) + '</td>'; }).join('') + '</tr>';
-      }).join('') + '</tbody></table></div>';
-  }
-
-  function desenharTabelasComp() {
-    var r = resultado;
-    var q = semAcentos($('c-pesq').value).toLowerCase().trim(), qn = norm($('c-pesq').value);
-    var ft = $('c-turma').value, fp = $('c-tipo').value;
-    function passa(e, tipo) {
-      if (ft && e.turma !== ft) return false;
-      if (fp && tipo !== fp) return false;
-      if (!q) return true;
-      return semAcentos(e.nome || '').toLowerCase().indexOf(q) >= 0 || (e.nif || '').indexOf(qn) >= 0 || (e.serie || '').indexOf(qn) >= 0;
-    }
-    var nao = r.naoLidos.filter(function (e) { return passa(e, e.tipo); })
-      .sort(function (a, b) { return (a.turma + a.nome).localeCompare(b.turma + b.nome, 'pt'); });
-    var esc_ = r.naEscola.filter(function (x) { return passa({ turma: x.eq.turma, nome: x.eq.nome, nif: x.eq.nif, serie: x.lido.serie }, x.lido.tipo); });
-    var sem = r.semRegisto.filter(function (it) { return !ft && (!fp || it.tipo === fp) && (!qn || it.serie.indexOf(qn) >= 0); });
-    $('c-tabelas').innerHTML =
-      '<h3>! Não lidos (' + nao.length + ')</h3><p class="nota">Estão nos ficheiros, mas não foram lidos em nenhum local da escola.</p>' +
-      tabela(CAB_NAO, nao.map(linhaNao), 5) +
-      '<h3>✓ Na escola (' + esc_.length + ')</h3>' + tabela(CAB_ESC, esc_.map(linhaEsc), 0) +
-      '<h3>! Lidos sem registo (' + sem.length + ')</h3><p class="nota">Foram lidos na escola, mas não aparecem em nenhum ficheiro carregado.</p>' +
-      tabela(CAB_INV, linhasInv(sem), 0);
-  }
-
   // ---------- Arranque ----------
-  if (MODO_PAGINA) {
-    // Nesta página a câmara ao vivo não está disponível: lê-se por fotografia
-    ['btn-camara', 'video-wrap', 'info-camara', 'btn-imprimir', 'btn-ler-tudo'].forEach(function (id) { var e = $(id); if (e) e.hidden = true; });
-    $('btn-foto').classList.add('principal');
-    var notaDados = document.querySelector('main > p.nota');
-    if (notaDados) {
-      notaDados.textContent = 'O registo fica neste iPhone e na sua conta Claude, numa parte privada. Mesmo assim, exporte para Excel no fim de cada dia.';
-      var en = document.createElement('p'); en.id = 'estado-nuvem'; en.className = 'nota';
-      notaDados.parentNode.insertBefore(en, notaDados.nextSibling);
-    }
-    $('dicas-camara').textContent = 'Toque em "Tirar fotografia" e fotografe a etiqueta de perto, direita e focada. Pode apanhar várias etiquetas na mesma fotografia, se todas ficarem nítidas. Se as barras não se lerem, a ferramenta tenta o número escrito.';
-  }
-  if (MODO_SITE) {
-    // Sem comparação neste site: os ficheiros dos alunos não entram no iPhone
-    document.querySelector('nav button[data-sec="comparar"]').hidden = true;
-    $('sec-comparar').hidden = true;
-    $('esc-tipo').hidden = true;
-    $('esc-tipo').previousElementSibling.hidden = true;
-    $('inicios-pc').closest('details').querySelector('p').textContent = 'Os códigos que começam por estes inícios ficam registados como PC.';
-    $('det-hs').hidden = false;
-  }
-  $('versao').textContent = 'Versão ' + VERSAO_FERRAMENTA;
-  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {}); } catch (e) {}
-  if (MODO_SITE && 'serviceWorker' in navigator && location.protocol === 'https:') {
-    // Guarda a ferramenta no iPhone para abrir sem internet (não guarda nem envia dados)
-    navigator.serviceWorker.register('sw.js').catch(function () {});
-  }
   carregar();
-  ligarNuvem();
   prepararWasm().catch(function () {});
+  carregarEscolha();
+  carregarRef();
   desenharInicios();
   desenharPerguntas();
+  desenharRef();
+  desenharLembrete();
   atualizarContagens();
+  setInterval(desenharLembrete, 10 * 60 * 1000);
+  // ---------- App no ecrã principal e sem rede ----------
+  var instalado = window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  var CHAVE_VAZIO = 'inventario_aviso_vazio_visto';
+  function desenharInstalar() {
+    var c = $('instalar');
+    if (!instalado) {
+      var fechado = false;
+      try { fechado = !!sessionStorage.getItem('inventario_instalar_fechado'); } catch (e) {}
+      if (fechado) { c.hidden = true; return; }
+      var n = dados.itens.length;
+      c.innerHTML = '<p style="margin:0 0 6px">Instale a ferramenta no ecrã principal</p>' +
+        '<p style="font-weight:normal; margin:0 0 6px">Assim o iPhone não apaga o registo e a ferramenta funciona sem rede.</p>' +
+        '<ol style="margin:0 0 10px; padding-left:28px; font-weight:normal">' +
+        (n ? '<li>Exporte primeiro o que já leu aqui (' + n + (n === 1 ? ' equipamento' : ' equipamentos') + ').</li>' : '') +
+        '<li>Toque em Partilhar (o quadrado com a seta para cima).</li>' +
+        '<li>Escolha "Adicionar ao ecrã principal".</li>' +
+        '<li>Abra a ferramenta pelo ícone novo.</li>' +
+        (n ? '<li>No separador "2. Lista", abra "Cópia de segurança e limpeza" e importe o Excel.</li>' : '') +
+        '</ol>' +
+        '<div class="linha-form">' + (n ? '<button class="pequeno principal" id="inst-exportar">Exportar agora</button>' : '') +
+        '<button class="pequeno" id="inst-fechar">Agora não</button></div>';
+      c.hidden = false;
+      if (n) $('inst-exportar').addEventListener('click', exportar);
+      $('inst-fechar').addEventListener('click', function () {
+        try { sessionStorage.setItem('inventario_instalar_fechado', '1'); } catch (e) {}
+        c.hidden = true;
+      });
+      return;
+    }
+    // Já é a app do ecrã principal: o registo é separado do Safari
+    var visto = false;
+    try { visto = !!localStorage.getItem(CHAVE_VAZIO); } catch (e) {}
+    if (dados.itens.length || visto) { c.hidden = true; return; }
+    c.innerHTML = '<p style="margin:0 0 6px">O registo desta app está vazio</p>' +
+      '<p style="font-weight:normal; margin:0 0 10px">A app tem um registo separado do Safari. Se já tinha leituras no Safari, importe o Excel exportado.</p>' +
+      '<div class="linha-form"><button class="pequeno principal" id="inst-importar">Importar Excel</button>' +
+      '<button class="pequeno" id="inst-fechar">Não preciso</button></div>';
+    c.hidden = false;
+    var visto_ = function () { try { localStorage.setItem(CHAVE_VAZIO, '1'); } catch (e) {} c.hidden = true; };
+    $('inst-importar').addEventListener('click', function () { visto_(); $('ficheiro-importar').click(); });
+    $('inst-fechar').addEventListener('click', visto_);
+  }
+  desenharInstalar();
+  window.__inst = function () { setTimeout(desenharInstalar, 0); };
+
+  function estadoOffline(txt, classe) { var e = $('offline-estado'); if (e) { e.textContent = txt; e.className = 'nota sem-impressao ' + (classe || ''); } }
+  if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:') {
+    navigator.serviceWorker.addEventListener('message', function (ev) {
+      if (ev.data === 'nova-versao') {
+        avisar('✓ Há uma versão nova da ferramenta. Feche a app e volte a abrir para a usar.', 'ok');
+      }
+    });
+    navigator.serviceWorker.register('sw.js').then(function () {
+      return navigator.serviceWorker.ready;
+    }).then(function () {
+      estadoOffline('✓ Pronta para usar sem rede.', 'ok-t');
+    }).catch(function () {
+      estadoOffline('! O modo sem rede não ficou ativo. Abra a ferramenta com rede e tente de novo.', 'aviso-t');
+    });
+  }
+
+  // Pede ao navegador para não apagar o registo sozinho (o Safari pode apagar dados de sites pouco usados)
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {}); } catch (e) {}
   if (!window.XLSX) avisar('✗ A parte do Excel não carregou. Feche e volte a abrir a ferramenta.', 'erro');
 
 })();
