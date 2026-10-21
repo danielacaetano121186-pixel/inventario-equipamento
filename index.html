@@ -864,6 +864,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   var vistos = {};
   function jaVisto(serie, agora) { var v = vistos[serie]; vistos[serie] = agora; return !!(v && agora - v < 5000); }
   var aConfirmar = {};
+  var ignorados = {}; // códigos que a Daniela mandou ignorar nesta sessão
+  function comecaPor1(s) { return MODO_SITE && /^1/.test(s) && tipoDe(s) === 'Hotspot'; }
+  function perguntarUns(uns) {
+    som(false);
+    mostrarVarios({ novos: [], iguais: [], outros: [], movidos: [], uns: uns.map(function (x) { return { serie: x, tipo: tipoDe(x) }; }), alvo: { local: sessao.local, estado: sessao.estado, tipo: sessao.tipo } });
+  }
   function hotspotIncerto(s, agora) {
     if (!MODO_SITE || !ativo || tipoDe(s) !== 'Hotspot') return false;
     var v = aConfirmar[s]; aConfirmar[s] = agora;
@@ -906,6 +912,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     // A câmara continua a ver o mesmo código enquanto o tablet está apontado: só conta outra vez depois de ler um código diferente.
     if (origem === 'camara' && jaVisto(serie, agora)) return;
     if (origem === 'camara' && !forcar && hotspotIncerto(serie, agora)) return;
+    if (!forcar && origem === 'camara' && ignorados[serie]) return;
+    if (!forcar && comecaPor1(serie)) { perguntarUns([serie]); return; }
     ultimoCod = serie; ultimoT = agora;
 
     if (!forcar && !inicioValido(serie)) {
@@ -1821,7 +1829,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     if (series.length === 1) { delete vistos[series[0]]; registar(series[0], 'camara'); return; }
     ultimoCod = series[series.length - 1]; ultimoT = agora;
     var alvo = { local: sessao.local, estado: sessao.estado, tipo: sessao.tipo };
-    var r = { novos: [], iguais: [], outros: [], movidos: [], alvo: alvo };
+    var r = { novos: [], iguais: [], outros: [], movidos: [], uns: [], alvo: alvo };
+    series = series.filter(function (s) { return !ignorados[s]; });
+    r.uns = series.filter(comecaPor1).map(function (x) { return { serie: x, tipo: tipoDe(x) }; });
+    series = series.filter(function (s) { return !comecaPor1(s); });
     series.forEach(function (s) {
       var ex = procurar(s);
       if (!ex) {
@@ -1831,18 +1842,28 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       else r.outros.push(ex);
     });
     if (r.novos.length) guardar();
-    som(r.novos.length > 0 && !r.outros.length);
+    som(r.novos.length > 0 && !r.outros.length && !r.uns.length);
     mostrarVarios(r);
     atualizarContagens();
   }
 
   function mostrarVarios(r) {
     var a = r.alvo, n = r.novos.length;
+    r.uns = r.uns || [];
+    var temDuvidas = r.outros.length || r.uns.length;
+    var lidos = n + r.iguais.length + r.outros.length + r.movidos.length;
     var lista = function (itens, extra) {
       return '<ul>' + itens.map(function (it, k) { return '<li><b class="serie">' + esc(it.serie) + '</b>' + (MODO_SITE ? ' (' + esc(it.tipo) + ')' : '') + (extra ? extra(it, k) : '') + '</li>'; }).join('') + '</ul>';
     };
-    var html = '<p class="' + (r.outros.length ? 'aviso-t' : 'ok-t') + '">' + (r.outros.length ? '! ' : '✓ ') +
-      'Li ' + (n + r.iguais.length + r.outros.length + r.movidos.length) + ' n.º de série de uma vez</p>';
+    var html = lidos + r.uns.length > 1 ? '<p class="' + (temDuvidas ? 'aviso-t' : 'ok-t') + '">' + (temDuvidas ? '! ' : '✓ ') +
+      'Li ' + (lidos + r.uns.length) + ' códigos de uma vez</p>' : '';
+    if (r.uns.length) {
+      html += '<p class="aviso-t">! ' + (r.uns.length === 1 ? 'Este código começa' : 'Estes códigos começam') + ' por 1. Normalmente não é o n.º de série.</p>' +
+        '<p>É o que quer registar?</p>' +
+        lista(r.uns, function (it, k) {
+          return ' <button class="pequeno principal" id="v-um-sim' + k + '">Sim, registar</button> <button class="pequeno" id="v-um-nao' + k + '">Não, ignorar</button>';
+        });
+    }
     if (n) {
       html += '<p><b>✓ Registados (' + n + '):</b> ' + (MODO_SITE ? '' : esc(a.tipo) + ' · ') + esc(a.local) + ' · ' + esc(r.novos[0].estado) + '</p>' + lista(r.novos) +
         '<div class="linha-form"><label for="v-estado" style="align-self:center">Mudar o estado ' + (n === 1 ? 'deste' : 'destes ' + n) + ':</label>' +
@@ -1858,7 +1879,25 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       });
       if (r.outros.length > 1) html += '<div class="linha-form"><button class="pequeno principal" id="v-mover-todos">Passar todos para ' + esc(a.local) + ', ' + esc(a.estado) + '</button></div>';
     }
-    mostrarUltimo(r.outros.length ? 'aviso' : 'ok', html);
+    mostrarUltimo(temDuvidas ? 'aviso' : 'ok', html);
+    r.uns.forEach(function (u, k) {
+      $('v-um-sim' + k).addEventListener('click', function () {
+        r.uns = r.uns.filter(function (x) { return x !== u; });
+        var ex = procurar(u.serie);
+        if (!ex) {
+          var item = { serie: u.serie, tipo: tipoDe(u.serie), local: a.local, estado: a.estado, quando: new Date().toISOString() };
+          dados.itens.push(item); lidosSessao.unshift(item); r.novos.push(item); guardar(); som(true);
+        } else if (ex.local === a.local && ex.estado === a.estado) r.iguais.push(ex);
+        else r.outros.push(ex);
+        mostrarVarios(r); atualizarContagens();
+      });
+      $('v-um-nao' + k).addEventListener('click', function () {
+        ignorados[u.serie] = 1;
+        r.uns = r.uns.filter(function (x) { return x !== u; });
+        if (lidos || r.uns.length) mostrarVarios(r);
+        else mostrarUltimo('ok', '<p class="ok-t">✓ Ignorado: ' + esc(u.serie) + '. Não volto a perguntar por este código.</p>');
+      });
+    });
     var mover = function (ex) {
       ex.local = a.local; ex.estado = a.estado; ex.tipo = MODO_SITE ? tipoDe(ex.serie) : a.tipo; ex.quando = new Date().toISOString();
       if (lidosSessao.indexOf(ex) < 0) lidosSessao.unshift(ex);
