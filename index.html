@@ -3223,9 +3223,30 @@ var qrcode = function() {
       var q = window.qrcode(0, 'M'); q.addData('LOCAL:' + n, 'Byte'); q.make();
       return '<div class="cartao-qr">' + q.createSvgTag({ cellSize: 4, margin: 8, scalable: true }) + esc(n) + '</div>';
     }).join('');
+    var app = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if (app) {
+      // Na app do ecrã principal, o iPhone não abre a janela de impressão: guarda a folha num ficheiro
+      var doc = '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Códigos QR dos locais</title><style>' +
+        '@page { size:A4; margin:12mm; } body { margin:0; font-family:Arial, sans-serif; color:#000; background:#fff; }' +
+        '.nota { font-size:16px; margin:12px; } .folha { display:grid; grid-template-columns:repeat(3, 60mm); justify-content:center; }' +
+        '.cartao-qr { width:60mm; height:54mm; box-sizing:border-box; border:1px dashed #777; padding:3mm; text-align:center; break-inside:avoid; font-size:10pt; font-weight:bold; line-height:1.2; overflow:hidden; }' +
+        '.cartao-qr svg { width:38mm; height:38mm; display:block; margin:0 auto 2mm; } @media print { .nota { display:none; } }' +
+        '</style></head><body><p class="nota">Para imprimir: no iPhone, Partilhar → Imprimir. No computador, Ctrl + P. Escolha papel A4 e tamanho real (100%).</p><div class="folha">' +
+        $('folha-qr').innerHTML + '</div></body></html>';
+      var nomeF = nomeFicheiro('QR_locais').replace(/\.xlsx$/, '.html');
+      try {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([doc], { type: 'text/html' }));
+        a.download = nomeF;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 60000);
+        msgCampo('qr-msg', '✓ Folha guardada: ' + nomeF + ' (' + nomes.length + ' códigos). Toque em "Transferir" e guarde em "No meu iPhone". Depois abra o ficheiro na app Ficheiros e use Partilhar → Imprimir. Também pode abri-lo no computador.', 'ok-t');
+      } catch (e) { msgCampo('qr-msg', '✗ Não consegui guardar a folha. Tente no Safari ou no computador.', 'erro-t'); }
+      return;
+    }
     document.body.classList.add('imprimir-qr');
     msgCampo('qr-msg', '✓ ' + nomes.length + (nomes.length === 1 ? ' código pronto.' : ' códigos prontos.') + ' Se a janela de impressão não abrir, use Partilhar → Imprimir.', 'ok-t');
-    setTimeout(function () { window.print(); }, 50);
+    window.print();
   });
   window.addEventListener('afterprint', function () { document.body.classList.remove('imprimir-qr'); });
   $('btn-imprimir').addEventListener('click', function () { document.body.classList.remove('imprimir-qr'); }, true);
