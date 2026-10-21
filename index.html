@@ -16,7 +16,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 16 (21/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 17 (21/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -144,6 +144,20 @@
     .tabela-wrap td.sem-impressao { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
     .tabela-wrap td.sem-impressao select { flex:1 1 160px; }
   }
+  #progresso { background:#fff; border:2px solid var(--azul); border-radius:8px; padding:8px 12px; margin:0 0 8px; }
+  .prog-linha { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; justify-content:space-between; font-weight:bold; color:var(--azul); }
+  #prog-barra { width:100%; height:14px; margin-top:6px; accent-color:var(--azul); }
+  #faltam { margin-top:8px; max-height:50vh; overflow:auto; }
+  #faltam ol { padding-left:26px; margin:6px 0; }
+  #faltam li { margin-bottom:6px; }
+  #faltam .serie { font-family:Arial, sans-serif; font-weight:bold; word-break:break-all; }
+  #mira { position:absolute; left:8%; right:8%; top:18%; bottom:18%; pointer-events:none; border:0 !important; box-shadow:none !important; border-radius:0;
+    background:
+      linear-gradient(#fff,#fff) top left / 28px 4px no-repeat, linear-gradient(#fff,#fff) top left / 4px 28px no-repeat,
+      linear-gradient(#fff,#fff) top right / 28px 4px no-repeat, linear-gradient(#fff,#fff) top right / 4px 28px no-repeat,
+      linear-gradient(#fff,#fff) bottom left / 28px 4px no-repeat, linear-gradient(#fff,#fff) bottom left / 4px 28px no-repeat,
+      linear-gradient(#fff,#fff) bottom right / 28px 4px no-repeat, linear-gradient(#fff,#fff) bottom right / 4px 28px no-repeat; }
+  #mira-txt { position:absolute; left:0; right:0; bottom:4px; margin:0; text-align:center; color:#fff; font-size:15px; text-shadow:0 1px 3px #000; pointer-events:none; }
 </style>
 <main>
 <h1>Inventário de equipamento</h1>
@@ -199,6 +213,11 @@
       <button class="pequeno escondido" id="btn-mudar">Voltar</button>
     </div>
     <p id="r-cont"></p>
+    <div id="progresso" class="sem-impressao" hidden>
+      <div class="prog-linha"><span id="prog-txt"></span><button class="pequeno" id="btn-faltam">Ver os que faltam</button></div>
+      <progress id="prog-barra" max="1" value="0"></progress>
+      <div id="faltam" hidden></div>
+    </div>
     <div id="r-novo" class="linha-form escondido">
       <input type="text" id="r-novo-txt" maxlength="40">
       <button class="pequeno principal" id="r-novo-ok">Acrescentar</button>
@@ -206,7 +225,7 @@
     </div>
     <p id="r-msg" role="status"></p>
 
-    <div id="video-wrap"><video id="video" playsinline muted></video></div>
+    <div id="video-wrap"><video id="video" playsinline muted></video><div id="mira" aria-hidden="true"></div><p id="mira-txt" aria-hidden="true">Aponte às etiquetas</p></div>
     <div id="ultimo"></div>
 
     <div class="linha-form">
@@ -320,7 +339,7 @@
   </details>
 </section>
 
-<p class="nota sem-impressao" id="versao">Versão 16 (21/10/2026)</p>
+<p class="nota sem-impressao" id="versao">Versão 17 (21/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
@@ -3561,8 +3580,11 @@ var qrcode = function() {
     if (sessao.local) {
       var pc = 0, hs = 0;
       dados.itens.forEach(function (it) { if (it.local === sessao.local) { if (it.tipo === 'Hotspot') hs++; else pc++; } });
-      $('r-cont').textContent = 'Neste local: ' + pc + ' PC · ' + hs + (hs === 1 ? ' hotspot' : ' hotspots');
+      var hoje = dataTxt(new Date().toISOString()), nh = 0;
+      dados.itens.forEach(function (it) { if (dataTxt(it.quando) === hoje) nh++; });
+      $('r-cont').textContent = 'Neste local: ' + pc + ' PC · ' + hs + (hs === 1 ? ' hotspot' : ' hotspots') + ' · Hoje: ' + nh;
     }
+    try { desenharProgresso(); } catch (e) {}
   }
 
   $('btn-manual').addEventListener('click', function () {
@@ -4787,7 +4809,45 @@ var qrcode = function() {
     desenharRef();
     if (ficheiros.length && !ref) avisar('! Não encontrei a coluna do n.º de série no ficheiro. Escolha-a em "Corrigir colunas", por baixo da lista.');
   }
+  // Progresso da contagem: quantos equipamentos da lista já foram lidos (também com prefixo 1S + modelo)
+  function lidoNaLista(k, series) {
+    if (series[k]) return true;
+    if (k.length < 6) return false;
+    for (var s in series) if (s.length > k.length && s.slice(-k.length) === k) return true;
+    return false;
+  }
+  function desenharProgresso() {
+    var c = $('progresso');
+    if (!ref) { c.hidden = true; return; }
+    var series = {};
+    dados.itens.forEach(function (it) { series[it.serie] = 1; });
+    var faltam = [], lidos = 0;
+    Object.keys(ref.itens).forEach(function (k) { if (lidoNaLista(k, series)) lidos++; else faltam.push(k); });
+    $('prog-txt').textContent = 'Lista: ' + lidos + ' de ' + ref.n + ' lidos · faltam ' + faltam.length;
+    $('prog-barra').max = ref.n || 1; $('prog-barra').value = lidos;
+    $('btn-faltam').hidden = !faltam.length;
+    c.hidden = false;
+    var f = $('faltam');
+    if (!f.hidden) {
+      faltam.sort(function (a, b) {
+        var ea = ref.itens[a], eb = ref.itens[b];
+        return ((ea.tu || '') + (ea.n || '') + a).localeCompare((eb.tu || '') + (eb.n || '') + b, 'pt');
+      });
+      f.innerHTML = faltam.length ? '<p class="nota" style="margin:0">Estão na lista, mas ainda não foram lidos.</p><ol>' + faltam.map(function (k) {
+        var e = ref.itens[k];
+        return '<li><span class="serie">' + esc(k) + '</span> · ' + esc(e.t || '') + (e.n ? ' · ' + esc(e.n) : '') + (e.tu ? ' · Turma ' + esc(e.tu) : '') + '</li>';
+      }).join('') + '</ol>' : '<p class="ok-t">✓ Já leu todos os equipamentos da lista.</p>';
+    }
+  }
+  $('btn-faltam').addEventListener('click', function () {
+    var f = $('faltam');
+    f.hidden = !f.hidden;
+    this.textContent = f.hidden ? 'Ver os que faltam' : 'Esconder';
+    desenharProgresso();
+  });
+
   function desenharRef() {
+    try { desenharProgresso(); } catch (e) {}
     $('ref-estado').textContent = ref
       ? '✓ Lista de equipamento carregada: ' + ref.n + ' equipamentos (' + ref.fontes.join(', ') + '). Ao ler, aparece o aluno. A lista apaga-se quando fechar este separador.'
       : 'Opcional: carregue o Excel do equipamento atribuído para ver o aluno de cada PC e apanhar números mal lidos. Pode escolher vários ficheiros de uma vez. A lista não fica guardada.';
