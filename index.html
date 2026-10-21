@@ -10,7 +10,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 12 (21/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 12.2 (21/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -142,6 +142,17 @@
         <button id="btn-inicios-repor">Repor</button>
       </div>
       <p id="inicios-msg" class="ok-t"></p>
+    </details>
+    <details id="det-hs" hidden>
+      <summary>Números de série dos hotspots</summary>
+      <p>Os códigos que começam por estes inícios ficam registados como hotspot. Os códigos que não começam pelos inícios dos PC nem dos hotspots pedem confirmação antes de serem registados.</p>
+      <p class="nota">Separe com vírgulas.</p>
+      <div class="linha-form">
+        <input type="text" id="inicios-hs" autocomplete="off" spellcheck="false">
+        <button id="btn-inicios-hs">Guardar</button>
+        <button id="btn-inicios-hs-repor">Repor</button>
+      </div>
+      <p id="inicios-hs-msg" class="ok-t"></p>
     </details>
   </div>
 
@@ -563,6 +574,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   var CHAVE = 'inventario_equipamento_v1';
   var INICIOS_PC = ['GW1W149', 'GW1W148', '22SF', '96XC', '96XD', '4032'];
   var VERSAO_INICIOS = 3;
+  var INICIOS_HS = ['8026'];
 
   // ---------- Utilitários ----------
   function $(id) { return document.getElementById(id); }
@@ -604,12 +616,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   // No tablet: só no aparelho (localStorage).
   // No iPhone (página do claude.ai): também na conta Claude da Daniela (capacidade "db", parte privada),
   // porque o iPhone pode apagar os dados da página quando se fecha.
-  var dados = { itens: [], locaisExtra: [], estadosExtra: [], iniciosPC: INICIOS_PC.slice(), versaoInicios: VERSAO_INICIOS, atualizado: 0 };
+  var dados = { itens: [], locaisExtra: [], estadosExtra: [], iniciosPC: INICIOS_PC.slice(), iniciosHS: INICIOS_HS.slice(), versaoInicios: VERSAO_INICIOS, atualizado: 0 };
   function aplicar(o) {
     dados.itens = Array.isArray(o.itens) ? o.itens : [];
     dados.locaisExtra = Array.isArray(o.locaisExtra) ? o.locaisExtra : [];
     dados.estadosExtra = Array.isArray(o.estadosExtra) ? o.estadosExtra : [];
     if (Array.isArray(o.iniciosPC)) dados.iniciosPC = o.iniciosPC;
+    dados.iniciosHS = Array.isArray(o.iniciosHS) ? o.iniciosHS : INICIOS_HS.slice();
     // Inícios novos que entraram numa versão posterior da ferramenta
     if ((o.versaoInicios || 1) < VERSAO_INICIOS) {
       INICIOS_PC.forEach(function (i) { if (dados.iniciosPC.indexOf(i) < 0) dados.iniciosPC.push(i); });
@@ -846,7 +859,15 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     window.scrollTo(0, 0);
   });
 
-  function desenharInicios() { $('inicios-pc').value = listaInicios(); }
+  function desenharInicios() { $('inicios-pc').value = listaInicios(); $('inicios-hs').value = (dados.iniciosHS || []).join(', '); }
+  $('btn-inicios-hs').addEventListener('click', function () {
+    var v = $('inicios-hs').value.split(/[,;\n]/).map(function (x) { return norm(x); }).filter(function (x) { return x; });
+    dados.iniciosHS = v; guardar(); desenharInicios();
+    $('inicios-hs-msg').textContent = v.length ? '✓ Guardado.' : '✓ Guardado. Sem inícios, só os códigos que começam por 1 pedem confirmação.';
+  });
+  $('btn-inicios-hs-repor').addEventListener('click', function () {
+    dados.iniciosHS = INICIOS_HS.slice(); guardar(); desenharInicios(); $('inicios-hs-msg').textContent = '✓ Valores iniciais repostos.';
+  });
   $('btn-inicios').addEventListener('click', function () {
     var v = $('inicios-pc').value.split(/[,;\n]/).map(function (x) { return norm(x); }).filter(function (x) { return x; });
     dados.iniciosPC = v;
@@ -865,7 +886,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function jaVisto(serie, agora) { var v = vistos[serie]; vistos[serie] = agora; return !!(v && agora - v < 5000); }
   var aConfirmar = {};
   var ignorados = {}; // códigos que a Daniela mandou ignorar nesta sessão
-  function comecaPor1(s) { return MODO_SITE && /^1/.test(s) && tipoDe(s) === 'Hotspot'; }
+  // Códigos que não são PC e não começam pelos inícios dos hotspots: pedem confirmação
+  function hotspotConhecido(s) {
+    var l = dados.iniciosHS || [];
+    if (!l.length) return !/^1/.test(s);
+    return l.some(function (i) { return s.indexOf(norm(i)) === 0; });
+  }
+  function comecaPor1(s) { return MODO_SITE && tipoDe(s) === 'Hotspot' && !hotspotConhecido(s); }
   function perguntarUns(uns) {
     som(false);
     mostrarVarios({ novos: [], iguais: [], outros: [], movidos: [], uns: uns.map(function (x) { return { serie: x, tipo: tipoDe(x) }; }), alvo: { local: sessao.local, estado: sessao.estado, tipo: sessao.tipo } });
@@ -1858,7 +1885,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     var html = lidos + r.uns.length > 1 ? '<p class="' + (temDuvidas ? 'aviso-t' : 'ok-t') + '">' + (temDuvidas ? '! ' : '✓ ') +
       'Li ' + (lidos + r.uns.length) + ' códigos de uma vez</p>' : '';
     if (r.uns.length) {
-      html += '<p class="aviso-t">! ' + (r.uns.length === 1 ? 'Este código começa' : 'Estes códigos começam') + ' por 1. Normalmente não é o n.º de série.</p>' +
+      var um = r.uns.length === 1, todos1 = r.uns.every(function (u) { return /^1/.test(u.serie); });
+      html += '<p class="aviso-t">! ' + (todos1
+        ? (um ? 'Este código começa' : 'Estes códigos começam') + ' por 1. Normalmente não é o n.º de série.'
+        : (um ? 'Este código não parece' : 'Estes códigos não parecem') + ' um n.º de série de PC nem de hotspot.') + '</p>' +
         '<p>É o que quer registar?</p>' +
         lista(r.uns, function (it, k) {
           return ' <button class="pequeno principal" id="v-um-sim' + k + '">Sim, registar</button> <button class="pequeno" id="v-um-nao' + k + '">Não, ignorar</button>';
@@ -2499,8 +2529,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     $('sec-comparar').hidden = true;
     $('esc-tipo').hidden = true;
     $('esc-tipo').previousElementSibling.hidden = true;
-    $('inicios-pc').closest('details').querySelector('p').textContent = 'Os códigos que começam por estes inícios ficam registados como PC. Todos os outros ficam registados como hotspot.';
-    $('inicios-pc').closest('details').querySelector('summary').textContent = 'Números de série dos PC (o resto é hotspot)';
+    $('inicios-pc').closest('details').querySelector('p').textContent = 'Os códigos que começam por estes inícios ficam registados como PC.';
+    $('det-hs').hidden = false;
   }
   carregar();
   ligarNuvem();
