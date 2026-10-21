@@ -16,7 +16,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 15 (21/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 16 (21/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -119,11 +119,34 @@
     .cartao-qr { width:60mm; height:54mm; border:1px dashed #777; padding:3mm; text-align:center; break-inside:avoid; font-family:Arial, sans-serif; font-size:10pt; font-weight:bold; line-height:1.2; overflow:hidden; }
     .cartao-qr svg { width:38mm; height:38mm; display:block; margin:0 auto 2mm; }
   }
+  h1 { font-size:20px; margin:0 0 6px; }
+  nav { position:sticky; top:0; z-index:20; background:var(--fundo); margin:0 0 8px; padding:8px 0; }
+  nav button { flex:1 1 90px; padding:8px 4px; font-size:17px; white-space:nowrap; }
+  #leitura, #sec-lista, #sec-def { scroll-margin-top:76px; }
+  .resumo { margin:4px 0 6px; padding:8px 10px; }
+  #r-cont:empty, #r-msg:empty { display:none; }
+  #r-msg { margin:0 0 6px; }
+  video { height:32vh; min-height:200px; }
+  #btn-camara { flex:2 1 200px; min-height:60px; font-size:21px; }
+  #ultimo { margin:8px 0; }
+  .so-impressao { display:none; }
+  @media print { .so-impressao { display:inline; } }
+  @media screen and (max-width:640px) {
+    .tabela-wrap { overflow:visible; }
+    .tabela-wrap table, .tabela-wrap tbody, .tabela-wrap tr, .tabela-wrap td { display:block; width:100%; }
+    .tabela-wrap thead { display:none; }
+    .tabela-wrap table { background:none; }
+    .tabela-wrap tr { background:#fff; border:1px solid var(--linha); border-radius:8px; margin:0 0 10px; padding:8px 12px; }
+    .tabela-wrap td { border:0; padding:2px 0; }
+    .tabela-wrap td.serie { font-family:Arial, sans-serif; font-size:19px; font-weight:bold; word-break:break-all; }
+    .tabela-wrap td:not(.serie):not(.sem-impressao) { display:inline; }
+    .tabela-wrap td:not(.serie):not(.sem-impressao):not(:nth-last-child(2))::after { content:" · "; }
+    .tabela-wrap td.sem-impressao { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .tabela-wrap td.sem-impressao select { flex:1 1 160px; }
+  }
 </style>
 <main>
 <h1>Inventário de equipamento</h1>
-<p class="nota sem-impressao">Os dados ficam só neste telemóvel. Exporte para Excel no fim de cada dia.</p>
-<p id="offline-estado" class="nota sem-impressao"></p>
 <div id="instalar" class="caixa sem-impressao" hidden></div>
 
 <div id="aviso-geral" class="aviso-geral" hidden role="alert"></div>
@@ -132,20 +155,12 @@
 <nav>
   <button data-sec="ler" class="ativo">1. Ler</button>
   <button data-sec="lista">2. Lista</button>
+  <button data-sec="def">3. Definições</button>
 </nav>
 
 <!-- ========== 1. LER ========== -->
 <section id="sec-ler">
-  <div id="perguntas">
-    <div id="ajuda" class="caixa" hidden>
-      <p style="margin:0 0 6px">Como usar</p>
-      <ol style="margin:0 0 10px; padding-left:28px; font-weight:normal">
-        <li>Escolha onde está e o estado. A ferramenta sabe sozinha se é PC ou hotspot.</li>
-        <li>Toque em "Começar a ler". A câmara liga sozinha: aponte às etiquetas, uma atrás da outra. Pode mudar o local e o estado a meio, no topo do ecrã.</li>
-        <li>No fim do dia, exporte para Excel no separador "2. Lista".</li>
-      </ol>
-      <button class="pequeno" id="btn-ajuda-ok">Já percebi</button>
-    </div>
+  <div id="perguntas" class="escondido">
     <h2>Onde está?</h2>
     <div class="escolhas" id="esc-local"></div>
     <div class="linha-form">
@@ -165,6 +180,69 @@
     <p id="falta" class="aviso-t"></p>
     <button class="principal" id="btn-comecar" style="width:100%; min-height:64px; font-size:22px;">Começar a ler</button>
 
+  </div>
+
+  <div id="leitura">
+    <div id="ajuda" class="caixa" hidden>
+      <p style="margin:0 0 6px">Como usar</p>
+      <ol style="margin:0 0 10px; padding-left:28px; font-weight:normal">
+        <li>No topo, escolha o local e o estado. Também pode ler o código QR do local.</li>
+        <li>Toque em "Ligar a câmara" e aponte às etiquetas, uma atrás da outra. A ferramenta sabe sozinha se é PC ou hotspot.</li>
+        <li>No fim do dia, exporte para Excel no separador "2. Lista".</li>
+        <li>Inícios dos n.º de série, códigos QR e apagar locais: separador "3. Definições".</li>
+      </ol>
+      <button class="pequeno" id="btn-ajuda-ok">Já percebi</button>
+    </div>
+    <div class="resumo">
+      <label class="campo-r">Local <select id="r-local"></select></label>
+      <label class="campo-r">Estado <select id="r-estado"></select></label>
+      <button class="pequeno escondido" id="btn-mudar">Voltar</button>
+    </div>
+    <p id="r-cont"></p>
+    <div id="r-novo" class="linha-form escondido">
+      <input type="text" id="r-novo-txt" maxlength="40">
+      <button class="pequeno principal" id="r-novo-ok">Acrescentar</button>
+      <button class="pequeno" id="r-novo-nao">Cancelar</button>
+    </div>
+    <p id="r-msg" role="status"></p>
+
+    <div id="video-wrap"><video id="video" playsinline muted></video></div>
+    <div id="ultimo"></div>
+
+    <div class="linha-form">
+      <button class="principal" id="btn-camara">Ligar a câmara</button>
+      <button id="btn-foto">Tirar fotografia</button>
+      <input type="file" id="ficheiro-foto" accept="image/*" capture="environment" class="escondido">
+      <span id="estado-camara" class="nota"></span>
+    </div>
+    <div id="zoom-wrap" class="linha-form escondido"><label for="zoom">Zoom:</label> <input type="range" id="zoom" style="flex:1 1 200px; min-height:44px"></div>
+
+    <div class="linha-form">
+      <input type="text" id="manual" placeholder="Ou escreva o n.º de série" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <button id="btn-manual">Adicionar</button>
+    </div>
+    <p class="nota sem-impressao" id="dicas-camara">Aponte para o código de barras por baixo de "S/N". Pode ler várias etiquetas de uma vez, se todas estiverem nítidas. Se a imagem estiver desfocada, afaste um pouco o aparelho ou toque nela. Se a câmara não ler, use "Tirar fotografia".</p>
+    <p id="info-camara" class="nota"></p>
+
+    <div class="lista-ref sem-impressao">
+      <p id="ref-estado" class="nota"></p>
+      <div class="linha-form">
+        <button class="pequeno" id="btn-ref-carregar">Carregar lista de equipamento</button>
+        <button class="pequeno perigo escondido" id="btn-ref-retirar">Retirar lista</button>
+        <input type="file" id="ficheiro-eq" accept=".xlsx,.xls,.csv" multiple class="escondido">
+      </div>
+      <div id="lista-ficheiros"></div>
+    </div>
+
+    <p>Lidos nesta sessão: <b id="n-sessao">0</b>. Total no registo: <b id="n-total">0</b>.</p>
+    <ol id="lista-sessao" class="nota"></ol>
+  </div>
+</section>
+
+<!-- ========== 3. DEFINIÇÕES ========== -->
+<section id="sec-def" class="escondido">
+  <h2>Definições</h2>
+<p id="offline-estado" class="nota sem-impressao"></p>
     <details>
       <summary>Números de série dos PC</summary>
       <p>Um código que começa por um destes inícios fica registado como PC. Os outros ficam como hotspot (veja "Números de série dos hotspots").</p>
@@ -211,53 +289,6 @@
       <div id="gerir-extras"></div>
     </details>
     <p><button class="pequeno" id="btn-ajuda">Como usar</button></p>
-  </div>
-
-  <div id="leitura" class="escondido">
-    <div class="resumo">
-      <label class="campo-r">Local <select id="r-local"></select></label>
-      <label class="campo-r">Estado <select id="r-estado"></select></label>
-      <button class="pequeno" id="btn-mudar">Voltar</button>
-    </div>
-    <p id="r-cont"></p>
-    <div id="r-novo" class="linha-form escondido">
-      <input type="text" id="r-novo-txt" maxlength="40">
-      <button class="pequeno principal" id="r-novo-ok">Acrescentar</button>
-      <button class="pequeno" id="r-novo-nao">Cancelar</button>
-    </div>
-    <p id="r-msg" role="status"></p>
-
-    <div id="video-wrap"><video id="video" playsinline muted></video></div>
-    <div id="ultimo"></div>
-
-    <div class="linha-form">
-      <button class="principal" id="btn-camara">Ligar a câmara</button>
-      <button id="btn-foto">Tirar fotografia</button>
-      <input type="file" id="ficheiro-foto" accept="image/*" capture="environment" class="escondido">
-      <span id="estado-camara" class="nota"></span>
-    </div>
-    <div id="zoom-wrap" class="linha-form escondido"><label for="zoom">Zoom:</label> <input type="range" id="zoom" style="flex:1 1 200px; min-height:44px"></div>
-
-    <div class="linha-form">
-      <input type="text" id="manual" placeholder="Ou escreva o n.º de série" autocomplete="off" autocapitalize="characters" spellcheck="false">
-      <button id="btn-manual">Adicionar</button>
-    </div>
-    <p class="nota sem-impressao" id="dicas-camara">Aponte para o código de barras por baixo de "S/N". Pode ler várias etiquetas de uma vez, se todas estiverem nítidas. Se a imagem estiver desfocada, afaste um pouco o aparelho ou toque nela. Se a câmara não ler, use "Tirar fotografia".</p>
-    <p id="info-camara" class="nota"></p>
-
-    <div class="lista-ref sem-impressao">
-      <p id="ref-estado" class="nota"></p>
-      <div class="linha-form">
-        <button class="pequeno" id="btn-ref-carregar">Carregar lista de equipamento</button>
-        <button class="pequeno perigo escondido" id="btn-ref-retirar">Retirar lista</button>
-        <input type="file" id="ficheiro-eq" accept=".xlsx,.xls,.csv" multiple class="escondido">
-      </div>
-      <div id="lista-ficheiros"></div>
-    </div>
-
-    <p>Lidos nesta sessão: <b id="n-sessao">0</b>. Total no registo: <b id="n-total">0</b>.</p>
-    <ol id="lista-sessao" class="nota"></ol>
-  </div>
 </section>
 
 <!-- ========== 2. LISTA ========== -->
@@ -273,6 +304,7 @@
     <button class="principal" id="btn-exportar">Exportar para Excel</button>
     <button id="btn-imprimir">Imprimir</button>
   </div>
+<p class="nota sem-impressao" style="margin-top:0">Os dados ficam só neste telemóvel. Exporte para Excel no fim de cada dia.</p>
   <div id="tabela-lista"></div>
 
   <details class="sem-impressao">
@@ -288,7 +320,7 @@
   </details>
 </section>
 
-<p class="nota sem-impressao" id="versao">Versão 15 (21/10/2026)</p>
+<p class="nota sem-impressao" id="versao">Versão 16 (21/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
@@ -3035,7 +3067,7 @@ var qrcode = function() {
   // ---------- Navegação ----------
   var navBtns = document.querySelectorAll('nav button');
   function mostrarSec(nome) {
-    ['ler', 'lista'].forEach(function (s) { $('sec-' + s).classList.toggle('escondido', s !== nome); });
+    ['ler', 'lista', 'def'].forEach(function (s) { $('sec-' + s).classList.toggle('escondido', s !== nome); });
     for (var i = 0; i < navBtns.length; i++) navBtns[i].classList.toggle('ativo', navBtns[i].getAttribute('data-sec') === nome);
     if (nome !== 'ler') pararCamara();
     if (nome === 'lista') desenharLista();
@@ -3144,7 +3176,8 @@ var qrcode = function() {
   function opcoesSelect(lista, atual, rotNovo) {
     lista = lista.slice();
     if (atual && lista.indexOf(atual) < 0) lista.push(atual);
-    return lista.map(function (v) { return '<option' + (v === atual ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('') +
+    return (atual ? '' : '<option value="" selected disabled>Escolha…</option>') +
+      lista.map(function (v) { return '<option' + (v === atual ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('') +
       (rotNovo ? '<option value="' + NOVO + '">＋ ' + esc(rotNovo) + '</option>' : '');
   }
   function desenharResumo() {
@@ -3285,7 +3318,7 @@ var qrcode = function() {
   // ---- Ajuda curta, mostrada na primeira vez ----
   var CHAVE_AJUDA = 'inventario_ajuda_vista';
   $('btn-ajuda-ok').addEventListener('click', function () { $('ajuda').hidden = true; try { localStorage.setItem(CHAVE_AJUDA, '1'); } catch (e) {} });
-  $('btn-ajuda').addEventListener('click', function () { $('ajuda').hidden = false; window.scrollTo(0, 0); });
+  $('btn-ajuda').addEventListener('click', function () { mostrarSec('ler'); $('ajuda').hidden = false; window.scrollTo(0, 0); });
   try { $('ajuda').hidden = !!localStorage.getItem(CHAVE_AJUDA); } catch (e) { $('ajuda').hidden = false; }
 
   function desenharInicios() { $('inicios-pc').value = listaInicios(); $('inicios-hs').value = dados.iniciosHS.join(', '); }
@@ -3405,8 +3438,18 @@ var qrcode = function() {
     mostrarUltimo('ok', '<p class="ok-t">✓ Local mudado</p><p class="grande">' + esc(nome) + '</p><p>Os próximos equipamentos ficam registados aqui.</p>');
   }
 
+  function faltaEscolha() {
+    if (sessao.local && sessao.estado) return false;
+    som(false);
+    mostrarUltimo('aviso', '<p class="aviso-t">! Escolha primeiro ' + (!sessao.local && !sessao.estado ? 'o local e o estado' : !sessao.local ? 'o local' : 'o estado') + ', no topo do ecrã.</p>' +
+      (!sessao.local ? '<p>Também pode ler o código QR do local.</p>' : ''));
+    try { $('leitura').scrollIntoView({ block: 'start' }); } catch (e) {}
+    return true;
+  }
+
   function registar(texto, origem, forcar) {
     if (eLocalQR(texto)) { mudarLocalQR(texto); return; }
+    if (faltaEscolha()) return;
     var serie = norm(texto);
     if (origem === 'camara' || origem === 'texto') { ultimoSucesso = Date.now(); confirmPendente = false; }
     if (serie.length < 4) {
@@ -4146,6 +4189,7 @@ var qrcode = function() {
 
   // Regista vários n.º de série lidos na mesma imagem e mostra um resumo
   function registarVarios(series) {
+    if (faltaEscolha()) return;
     var agora = Date.now();
     series = series.filter(function (s) { return !jaVisto(s, agora); });
     ultimoSucesso = agora; confirmPendente = false;
@@ -4370,7 +4414,7 @@ var qrcode = function() {
       var g = grupos[l].slice().sort(function (a, b) {
         return a.tipo === b.tipo ? (a.serie < b.serie ? -1 : 1) : (a.tipo < b.tipo ? -1 : 1);
       });
-      html += '<div class="grupo-local"><h3>' + esc(l) + ' (' + g.length + ')<span class="nota" style="font-weight:normal"> · impresso a ' + hoje + '</span></h3>' +
+      html += '<div class="grupo-local"><h3>' + esc(l) + ' (' + g.length + ')<span class="nota so-impressao" style="font-weight:normal"> · impresso a ' + hoje + '</span></h3>' +
         '<div class="tabela-wrap"><table><thead><tr><th>N.º de série</th><th>Tipo</th><th>Estado</th><th>Data</th><th>Hora</th><th class="sem-impressao"></th></tr></thead><tbody>';
       g.forEach(function (it) {
         html += '<tr><td class="serie">' + esc(it.serie) + '</td><td>' + esc(it.tipo) + '</td><td>' + esc(it.estado) +
@@ -4824,6 +4868,9 @@ var qrcode = function() {
   desenharLembrete();
   atualizarContagens();
   setInterval(desenharLembrete, 10 * 60 * 1000);
+  desenharResumo();
+  atualizarContagens();
+  if (!dados.iniciosPC.length) msgCampo('r-msg', '! Ainda não escreveu os inícios dos números de série dos PC (separador "3. Definições"). Sem eles, tudo o que ler fica como hotspot.', 'aviso-t');
   // ---------- App no ecrã principal e sem rede ----------
   var instalado = window.navigator.standalone === true ||
     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
