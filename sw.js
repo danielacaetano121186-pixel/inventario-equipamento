@@ -1,7 +1,7 @@
 // Inventário de equipamento: guarda a página no iPhone para funcionar sem rede.
 // Abre sempre a cópia guardada (rápido e sem rede). Com rede, procura em segundo plano
 // uma versão nova; se houver, guarda-a e avisa a página.
-var CACHE = 'inventario-v13';
+var CACHE = 'inventario-v14';
 var FICHEIROS = ['./', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 
 self.addEventListener('install', function (ev) {
