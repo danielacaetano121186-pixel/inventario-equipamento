@@ -16,7 +16,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 17 (21/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 18 (21/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -158,6 +158,11 @@
       linear-gradient(#fff,#fff) bottom left / 28px 4px no-repeat, linear-gradient(#fff,#fff) bottom left / 4px 28px no-repeat,
       linear-gradient(#fff,#fff) bottom right / 28px 4px no-repeat, linear-gradient(#fff,#fff) bottom right / 4px 28px no-repeat; }
   #mira-txt { position:absolute; left:0; right:0; bottom:4px; margin:0; text-align:center; color:#fff; font-size:15px; text-shadow:0 1px 3px #000; pointer-events:none; }
+  #faixa { position:absolute; left:8px; right:8px; bottom:8px; z-index:2; display:block; width:auto; min-height:0; margin:0; padding:8px 12px;
+    border:0; border-radius:8px; text-align:left; font-size:16px; line-height:1.35; font-weight:bold; color:#fff; background:rgba(30,58,138,.93); box-shadow:0 2px 8px rgba(0,0,0,.4); }
+  #faixa.aviso { background:rgba(154,74,0,.95); }
+  #faixa .serie-f { display:block; font-family:Arial, sans-serif; font-size:19px; word-break:break-all; }
+  #faixa .mais { display:block; font-size:15px; font-weight:normal; margin-top:2px; }
 </style>
 <main>
 <h1>Inventário de equipamento</h1>
@@ -225,7 +230,7 @@
     </div>
     <p id="r-msg" role="status"></p>
 
-    <div id="video-wrap"><video id="video" playsinline muted></video><div id="mira" aria-hidden="true"></div><p id="mira-txt" aria-hidden="true">Aponte às etiquetas</p></div>
+    <div id="video-wrap"><video id="video" playsinline muted></video><div id="mira" aria-hidden="true"></div><p id="mira-txt" aria-hidden="true">Aponte às etiquetas</p><button type="button" id="faixa" hidden></button></div>
     <div id="ultimo"></div>
 
     <div class="linha-form">
@@ -339,7 +344,7 @@
   </details>
 </section>
 
-<p class="nota sem-impressao" id="versao">Versão 17 (21/10/2026)</p>
+<p class="nota sem-impressao" id="versao">Versão 18 (21/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
@@ -3206,7 +3211,9 @@ var qrcode = function() {
   function mudouEscolha() {
     guardarEscolha();
     vistos = {}; ultimoCod = '';
-    msgCampo('r-msg', '✓ A partir de agora: ' + sessao.local + ' · ' + sessao.estado + '.', 'ok-t');
+    var txtEscolha = '✓ A partir de agora: ' + sessao.local + ' · ' + sessao.estado + '.';
+    msgCampo('r-msg', txtEscolha, 'ok-t');
+    setTimeout(function () { if ($('r-msg').textContent === txtEscolha) msgCampo('r-msg', ''); }, 4000);
     atualizarContagens();
   }
   function fecharNovo() { modoNovo = ''; $('r-novo').classList.add('escondido'); $('r-novo-txt').value = ''; }
@@ -3513,7 +3520,28 @@ var qrcode = function() {
     var u = $('ultimo');
     u.className = classe;
     u.innerHTML = html;
+    try { desenharFaixa(classe, u); } catch (e) {}
   }
+  // Resumo do último resultado por cima da imagem da câmara (assim não é preciso deslizar)
+  function desenharFaixa(classe, u) {
+    var f = $('faixa');
+    if (!f) return;
+    var p = u.querySelector('p'), g = u.querySelector('.grande');
+    var titulo = p ? p.textContent.trim() : '';
+    if (!titulo) { f.hidden = true; return; }
+    var serie = g && g !== p ? g.textContent.trim() : '';
+    var info = g && g.nextElementSibling ? g.nextElementSibling.textContent.split(' · ')[0].trim() : '';
+    if (serie && (info === 'PC' || info === 'Hotspot')) serie += ' · ' + info;
+    var lista = u.querySelectorAll('li b.serie');
+    if (!serie && lista.length) serie = Array.prototype.map.call(lista, function (b) { return b.textContent; }).join(' · ');
+    var pergunta = !!u.querySelector('button.principal, #u-duv-sim, [id^="u-outro"], #u-mover, #u-ocr-ok');
+    f.className = classe === 'aviso' ? 'aviso' : '';
+    f.innerHTML = esc(titulo) + (serie ? '<span class="serie-f">' + esc(serie) + '</span>' : '') +
+      (pergunta ? '<span class="mais">Toque aqui para responder ↓</span>' : '');
+    f.hidden = false;
+    $('mira-txt').hidden = true;
+  }
+  $('faixa').addEventListener('click', function () { try { $('ultimo').scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} });
 
   // Lista de estados para um <select>, com o estado atual escolhido (mesmo que já não esteja na lista)
   function opcoesEstado(atual) {
