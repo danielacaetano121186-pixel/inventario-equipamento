@@ -199,8 +199,11 @@
         <button id="btn-qr-acrescentar">Acrescentar à lista</button>
       </div>
       <p id="qr-msg" role="status"></p>
-      <button class="principal" id="btn-qr-imprimir">Imprimir os códigos QR</button>
-      <p class="nota">Sai em folhas A4 normais, 15 por folha. No iPhone: Partilhar → Imprimir. Recorte e cole com fita-cola. Imprima primeiro uma folha para testar.</p>
+      <div class="linha-form">
+        <button class="principal" id="btn-qr-excel">Exportar para Excel (etiquetas)</button>
+        <button id="btn-qr-imprimir">Imprimir os códigos QR</button>
+      </div>
+      <p class="nota">Excel: uma linha por local, com o nome e o texto do código QR. Serve para fazer etiquetas autocolantes no Word (impressão em série). Imprimir: sai em folhas A4 normais, 15 por folha.</p>
     </details>
     <details>
       <summary>Apagar locais ou estados acrescentados</summary>
@@ -3195,10 +3198,24 @@ var qrcode = function() {
     $('qr-locais').value = (atual ? atual + '\n' : '') + novas.join('\n');
     msgCampo('qr-msg', '✓ Acrescentei ' + novas.length + ' prateleiras à lista.', 'ok-t');
   });
-  $('btn-qr-imprimir').addEventListener('click', function () {
+  function nomesQR() {
     var vistosQR = {};
-    var nomes = $('qr-locais').value.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); })
+    return $('qr-locais').value.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); })
       .filter(function (l) { var k = l.toLowerCase(); if (!l || vistosQR[k]) return false; vistosQR[k] = 1; return true; });
+  }
+  $('btn-qr-excel').addEventListener('click', function () {
+    var nomes = nomesQR();
+    if (!nomes.length) { msgCampo('qr-msg', '! Escreva pelo menos um local na lista.', 'aviso-t'); return; }
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, folha(['Local', 'QR'], nomes.map(function (n) { return [n, 'LOCAL:' + encodeURIComponent(n)]; }), [45, 80]), 'Locais');
+    var nome = nomeFicheiro('QR_locais');
+    try {
+      XLSX.writeFile(wb, nome);
+      msgCampo('qr-msg', '✓ Excel criado: ' + nome + ' (' + nomes.length + (nomes.length === 1 ? ' local' : ' locais') + '). Toque em "Transferir" e guarde em "No meu iPhone".', 'ok-t');
+    } catch (e) { msgCampo('qr-msg', '✗ Não consegui criar o Excel. Tente de novo.', 'erro-t'); }
+  });
+  $('btn-qr-imprimir').addEventListener('click', function () {
+    var nomes = nomesQR();
     if (!nomes.length) { msgCampo('qr-msg', '! Escreva pelo menos um local na lista.', 'aviso-t'); return; }
     if (!window.qrcode) { msgCampo('qr-msg', '✗ O criador de códigos QR não carregou. Feche e volte a abrir a ferramenta.', 'erro-t'); return; }
     window.qrcode.stringToBytes = window.qrcode.stringToBytesFuncs['UTF-8'];
@@ -3352,7 +3369,10 @@ var qrcode = function() {
 
   function eLocalQR(texto) { return /^LOCAL:/i.test(String(texto || '').trim()); }
   function mudarLocalQR(texto) {
-    var nome = String(texto).trim().slice(6).replace(/\s+/g, ' ').trim();
+    var nome = String(texto).trim().slice(6);
+    // QR feitos a partir do Excel: o texto vem codificado (Sala%20B3)
+    if (/%[0-9A-F]{2}/i.test(nome)) { try { nome = decodeURIComponent(nome); } catch (e) {} }
+    nome = nome.replace(/\s+/g, ' ').trim();
     if (!nome) return;
     var igual = locais().filter(function (l) { return l.toLowerCase() === nome.toLowerCase(); })[0];
     nome = igual || nome;
