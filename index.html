@@ -193,7 +193,7 @@
       <textarea id="qr-locais" rows="8" spellcheck="false"></textarea>
       <p>Ou acrescente armários e prateleiras de uma vez:</p>
       <div class="linha-form">
-        <input type="text" id="qr-base" value="Gabinete digital" aria-label="Local dos armários">
+        <input type="text" id="qr-base" placeholder="Onde estão os armários (por exemplo, Sala B3)" aria-label="Onde estão os armários">
         <label>Armários <input type="number" id="qr-arm" value="6" min="1" max="30"></label>
         <label>Prateleiras <input type="number" id="qr-prat" value="4" min="1" max="10"></label>
         <button id="btn-qr-acrescentar">Acrescentar à lista</button>
@@ -3186,7 +3186,8 @@ var qrcode = function() {
     if (this.open && !$('qr-locais').value.trim()) $('qr-locais').value = locais().join('\n');
   });
   $('btn-qr-acrescentar').addEventListener('click', function () {
-    var base = $('qr-base').value.replace(/\s+/g, ' ').trim() || 'Gabinete digital';
+    var base = $('qr-base').value.replace(/\s+/g, ' ').trim();
+    if (!base) { msgCampo('qr-msg', '! Escreva onde estão os armários.', 'aviso-t'); $('qr-base').focus(); return; }
     var na = Math.max(1, Math.min(30, parseInt($('qr-arm').value, 10) || 1)), np = Math.max(1, Math.min(10, parseInt($('qr-prat').value, 10) || 1));
     var novas = [];
     for (var a = 1; a <= na; a++) for (var p = 1; p <= np; p++) novas.push(base + ' · Armário ' + a + ' · Prateleira ' + p);
