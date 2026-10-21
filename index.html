@@ -16,7 +16,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 18 (21/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 19 (21/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -115,9 +115,11 @@
   #folha-qr { display:none; }
   @media print {
     body.imprimir-qr main, body.imprimir-qr #flash { display:none !important; }
-    body.imprimir-qr #folha-qr { display:grid !important; grid-template-columns:repeat(3, 60mm); justify-content:center; }
-    .cartao-qr { width:60mm; height:54mm; border:1px dashed #777; padding:3mm; text-align:center; break-inside:avoid; font-family:Arial, sans-serif; font-size:10pt; font-weight:bold; line-height:1.2; overflow:hidden; }
-    .cartao-qr svg { width:38mm; height:38mm; display:block; margin:0 auto 2mm; }
+    body.imprimir-qr #folha-qr { display:block !important; }
+    .pagina-qr { display:grid; grid-template-columns:repeat(3, 60mm); grid-template-rows:repeat(5, 50mm); justify-content:center; align-content:start; break-after:page; page-break-after:always; break-inside:avoid; page-break-inside:avoid; }
+    .pagina-qr:last-child { break-after:auto; page-break-after:auto; }
+    .cartao-qr { width:60mm; height:50mm; box-sizing:border-box; border:1px dashed #777; padding:2.5mm; text-align:center; font-family:Arial, sans-serif; font-size:10pt; font-weight:bold; line-height:1.2; overflow:hidden; }
+    .cartao-qr svg { width:35mm; height:35mm; display:block; margin:0 auto 1.5mm; }
   }
   h1 { font-size:20px; margin:0 0 6px; }
   nav { position:sticky; top:0; z-index:20; background:var(--fundo); margin:0 0 8px; padding:8px 0; }
@@ -344,7 +346,7 @@
   </details>
 </section>
 
-<p class="nota sem-impressao" id="versao">Versão 18 (21/10/2026)</p>
+<p class="nota sem-impressao" id="versao">Versão 19 (21/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
@@ -3278,20 +3280,25 @@ var qrcode = function() {
     if (!nomes.length) { msgCampo('qr-msg', '! Escreva pelo menos um local na lista.', 'aviso-t'); return; }
     if (!window.qrcode) { msgCampo('qr-msg', '✗ O criador de códigos QR não carregou. Feche e volte a abrir a ferramenta.', 'erro-t'); return; }
     window.qrcode.stringToBytes = window.qrcode.stringToBytesFuncs['UTF-8'];
-    $('folha-qr').innerHTML = nomes.map(function (n) {
+    var cartoes = nomes.map(function (n) {
       var q = window.qrcode(0, 'M'); q.addData('LOCAL:' + n, 'Byte'); q.make();
       return '<div class="cartao-qr">' + q.createSvgTag({ cellSize: 4, margin: 8, scalable: true }) + esc(n) + '</div>';
-    }).join('');
+    });
+    // Páginas fixas de 15 cartões: assim nenhum QR fica cortado entre duas páginas
+    var paginas = [];
+    for (var ip = 0; ip < cartoes.length; ip += 15) paginas.push('<div class="pagina-qr">' + cartoes.slice(ip, ip + 15).join('') + '</div>');
+    $('folha-qr').innerHTML = paginas.join('');
     var app = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
     if (app) {
       // Na app do ecrã principal, o iPhone não abre a janela de impressão: guarda a folha num ficheiro
       var doc = '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Códigos QR dos locais</title><style>' +
         '@page { size:A4; margin:12mm; } body { margin:0; font-family:Arial, sans-serif; color:#000; background:#fff; }' +
-        '.nota { font-size:16px; margin:12px; } .folha { display:grid; grid-template-columns:repeat(3, 60mm); justify-content:center; }' +
-        '.cartao-qr { width:60mm; height:54mm; box-sizing:border-box; border:1px dashed #777; padding:3mm; text-align:center; break-inside:avoid; font-size:10pt; font-weight:bold; line-height:1.2; overflow:hidden; }' +
-        '.cartao-qr svg { width:38mm; height:38mm; display:block; margin:0 auto 2mm; } @media print { .nota { display:none; } }' +
-        '</style></head><body><p class="nota">Para imprimir: no iPhone, Partilhar → Imprimir. No computador, Ctrl + P. Escolha papel A4 e tamanho real (100%).</p><div class="folha">' +
-        $('folha-qr').innerHTML + '</div></body></html>';
+        '.nota { font-size:16px; margin:12px; } .pagina-qr { display:grid; grid-template-columns:repeat(3, 60mm); grid-template-rows:repeat(5, 50mm); justify-content:center; align-content:start; break-after:page; page-break-after:always; break-inside:avoid; page-break-inside:avoid; } .pagina-qr:last-child { break-after:auto; page-break-after:auto; }' +
+        '@media screen { .pagina-qr { margin:0 auto 16px; border-bottom:3px solid #1E3A8A; padding-bottom:8px; } }' +
+        '.cartao-qr { width:60mm; height:50mm; box-sizing:border-box; border:1px dashed #777; padding:2.5mm; text-align:center; font-family:Arial, sans-serif; font-size:10pt; font-weight:bold; line-height:1.2; overflow:hidden; }' +
+        '.cartao-qr svg { width:35mm; height:35mm; display:block; margin:0 auto 1.5mm; } @media print { .nota { display:none; } }' +
+        '</style></head><body><p class="nota">Para imprimir: no iPhone, Partilhar → Imprimir. No computador, Ctrl + P. Escolha papel A4 e tamanho real (100%). Cada página leva 15 códigos.</p>' +
+        $('folha-qr').innerHTML + '</body></html>';
       var nomeF = nomeFicheiro('QR_locais').replace(/\.xlsx$/, '.html');
       try {
         var a = document.createElement('a');
