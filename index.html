@@ -16,7 +16,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 20 (22/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 21 (22/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -304,14 +304,13 @@
         <button id="btn-qr-acrescentar">Acrescentar à lista</button>
       </div>
       <p id="qr-msg" role="status"></p>
-      <div class="linha-form">
-        <button class="principal" id="btn-qr-excel">Exportar para Excel (etiquetas)</button>
-        <button id="btn-qr-imprimir">Criar PDF dos códigos QR</button>
-      </div>
       <div class="linha-form"><label for="qr-tam">Tamanho de cada QR:</label>
         <select id="qr-tam"><option value="30">3 cm</option><option value="35" selected>3,5 cm</option><option value="40">4 cm</option></select>
       </div>
-      <p class="nota">PDF: folhas A4, com o nome por baixo de cada código (15 por folha com 3 e 3,5 cm; 12 por folha com 4 cm). Ao imprimir, escolha tamanho real (100%), para os códigos saírem com a medida certa. Excel: uma linha por local, para fazer etiquetas autocolantes no Word.</p>
+      <div class="linha-form">
+        <button class="principal" id="btn-qr-imprimir">Criar PDF dos códigos QR</button>
+      </div>
+      <p class="nota">PDF: folhas A4, com o nome por baixo de cada código (15 por folha com 3 e 3,5 cm; 12 por folha com 4 cm). Ao imprimir, escolha tamanho real (100%), para os códigos saírem com a medida certa.</p>
     </details>
     <details>
       <summary>Apagar locais ou estados acrescentados</summary>
@@ -350,7 +349,7 @@
   </details>
 </section>
 
-<p class="nota sem-impressao" id="versao">Versão 20 (22/10/2026)</p>
+<p class="nota sem-impressao" id="versao">Versão 21 (22/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
@@ -3669,17 +3668,6 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return $('qr-locais').value.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); })
       .filter(function (l) { var k = l.toLowerCase(); if (!l || vistosQR[k]) return false; vistosQR[k] = 1; return true; });
   }
-  $('btn-qr-excel').addEventListener('click', function () {
-    var nomes = nomesQR();
-    if (!nomes.length) { msgCampo('qr-msg', '! Escreva pelo menos um local na lista.', 'aviso-t'); return; }
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, folha(['Local', 'QR'], nomes.map(function (n) { return [n, 'LOCAL:' + encodeURIComponent(n)]; }), [45, 80]), 'Locais');
-    var nome = nomeFicheiro('QR_locais');
-    try {
-      XLSX.writeFile(wb, nome);
-      msgCampo('qr-msg', '✓ Excel criado: ' + nome + ' (' + nomes.length + (nomes.length === 1 ? ' local' : ' locais') + '). Toque em "Transferir" e guarde em "No meu iPhone".', 'ok-t');
-    } catch (e) { msgCampo('qr-msg', '✗ Não consegui criar o Excel. Tente de novo.', 'erro-t'); }
-  });
   $('btn-qr-imprimir').addEventListener('click', function () {
     var nomes = nomesQR();
     if (!nomes.length) { msgCampo('qr-msg', '! Escreva pelo menos um local na lista.', 'aviso-t'); return; }
