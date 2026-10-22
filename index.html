@@ -16,7 +16,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 21 (22/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 22 (22/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -166,6 +166,12 @@
   #faixa.aviso { background:rgba(154,74,0,.95); }
   #faixa .serie-f { display:block; font-family:Arial, sans-serif; font-size:19px; word-break:break-all; }
   #faixa .mais { display:block; font-size:15px; font-weight:normal; margin-top:2px; }
+  #qr-lista { margin:8px 0; }
+  .qr-item { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--linha); border-radius:8px; padding:6px 10px; margin:0 0 6px; }
+  .qr-item label { flex:1 1 auto; display:flex; align-items:center; gap:10px; min-height:44px; cursor:pointer; }
+  .qr-item input[type=checkbox] { width:26px; height:26px; flex:0 0 auto; accent-color:var(--azul); }
+  .qr-item.marcado { border-color:var(--azul); background:var(--azulclaro); }
+  #det-qr h3 { margin:18px 0 6px; }
 </style>
 <main>
 <h1>Inventário de equipamento</h1>
@@ -292,18 +298,35 @@
       <p id="inicios-hs-msg" class="ok-t"></p>
     </details>
     <details id="det-qr">
-      <summary>Códigos QR dos locais</summary>
+      <summary>Locais e códigos QR</summary>
       <p>Cole um código QR em cada sala, armário ou prateleira. Quando a câmara o lê, o local muda sozinho.</p>
-      <p>Escreva um local por linha:</p>
-      <textarea id="qr-locais" rows="8" spellcheck="false"></textarea>
-      <p>Ou acrescente armários e prateleiras de uma vez:</p>
+      <h3>1. Acrescentar um local</h3>
       <div class="linha-form">
-        <input type="text" id="qr-base" placeholder="Onde estão os armários (por exemplo, Sala B3)" aria-label="Onde estão os armários">
-        <label>Armários <input type="number" id="qr-arm" value="6" min="1" max="30"></label>
-        <label>Prateleiras <input type="number" id="qr-prat" value="4" min="1" max="10"></label>
-        <button id="btn-qr-acrescentar">Acrescentar à lista</button>
+        <input type="text" id="qr-novo" placeholder="Por exemplo, Sala B3" maxlength="60" aria-label="Nome do local novo">
+        <button id="btn-qr-novo">Acrescentar</button>
       </div>
+      <h3>2. Ou acrescentar prateleiras de armários</h3>
+      <div class="linha-form">
+        <input type="text" id="qr-base" placeholder="Onde estão os armários (por exemplo, Gabinete)" maxlength="40" aria-label="Onde estão os armários">
+      </div>
+      <div class="linha-form">
+        <label>Do armário <input type="number" id="qr-arm-de" value="1" min="1" max="50" inputmode="numeric"></label>
+        <label>ao <input type="number" id="qr-arm-ate" value="1" min="1" max="50" inputmode="numeric"></label>
+      </div>
+      <div class="linha-form">
+        <label>Da prateleira <input type="number" id="qr-prat-de" value="1" min="1" max="20" inputmode="numeric"></label>
+        <label>à <input type="number" id="qr-prat-ate" value="1" min="1" max="20" inputmode="numeric"></label>
+      </div>
+      <div class="linha-form"><button id="btn-qr-acrescentar">Acrescentar prateleiras</button></div>
+      <p class="nota">Exemplo: do armário 3 ao 5, da prateleira 5 à 5 cria a prateleira 5 dos armários 3, 4 e 5.</p>
       <p id="qr-msg" role="status"></p>
+      <h3>3. Escolher e criar o PDF</h3>
+      <p class="nota">Os locais acabados de acrescentar ficam já marcados. O PDF leva só os marcados.</p>
+      <div class="linha-form">
+        <button class="pequeno" id="btn-qr-todos">Marcar todos</button>
+        <button class="pequeno" id="btn-qr-nenhum">Desmarcar todos</button>
+      </div>
+      <div id="qr-lista"></div>
       <div class="linha-form"><label for="qr-tam">Tamanho de cada QR:</label>
         <select id="qr-tam"><option value="30">3 cm</option><option value="35" selected>3,5 cm</option><option value="40">4 cm</option></select>
       </div>
@@ -349,7 +372,7 @@
   </details>
 </section>
 
-<p class="nota sem-impressao" id="versao">Versão 21 (22/10/2026)</p>
+<p class="nota sem-impressao" id="versao">Versão 22 (22/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
@@ -3650,27 +3673,88 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   $('r-novo-nao').addEventListener('click', function () { fecharNovo(); msgCampo('r-msg', ''); });
 
   // ---- Criar e imprimir os códigos QR dos locais ----
-  $('det-qr').addEventListener('toggle', function () {
-    if (this.open && !$('qr-locais').value.trim()) $('qr-locais').value = locais().join('\n');
+  // Locais da lista do QR: os mesmos do topo do ecrã de leitura. Marcados = vão para o PDF.
+  var qrMarcados = {}, CHAVE_QR_BASE = 'inventario_qr_base';
+  function ordenarNomes(l) { return l.slice().sort(function (x, y) { return x.localeCompare(y, 'pt', { numeric: true, sensitivity: 'base' }); }); }
+  function desenharListaQR() {
+    var c = $('qr-lista'), ls = ordenarNomes(locais());
+    if (!ls.length) { c.innerHTML = '<p class="nota">Ainda não há locais. Acrescente o primeiro em cima.</p>'; return; }
+    c.innerHTML = ls.map(function (n, k) {
+      var m = !!qrMarcados[n];
+      return '<div class="qr-item' + (m ? ' marcado' : '') + '"><label><input type="checkbox" data-k="' + k + '"' + (m ? ' checked' : '') + '>' + esc(n) + '</label>' +
+        '<button class="pequeno perigo" data-apagar="' + k + '">Apagar</button></div>';
+    }).join('');
+    c.setAttribute('data-ordem', JSON.stringify(ls));
+  }
+  function nomeDaLinha(el) { try { return JSON.parse($('qr-lista').getAttribute('data-ordem'))[+el]; } catch (e) { return null; } }
+  $('qr-lista').addEventListener('change', function (e) {
+    var cb = e.target; if (!cb || cb.type !== 'checkbox') return;
+    var n = nomeDaLinha(cb.getAttribute('data-k')); if (!n) return;
+    if (cb.checked) qrMarcados[n] = 1; else delete qrMarcados[n];
+    cb.closest('.qr-item').classList.toggle('marcado', cb.checked);
   });
+  $('qr-lista').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button') : null; if (!b) return;
+    if (b.hasAttribute('data-nao')) { desenharListaQR(); return; }
+    var k = b.getAttribute('data-apagar'), n = nomeDaLinha(k); if (!n) return;
+    if (!b.hasAttribute('data-sim')) {
+      b.parentNode.innerHTML = '<span style="flex:1 1 auto">Apagar "' + esc(n) + '"?</span>' +
+        '<button class="pequeno perigo" data-apagar="' + k + '" data-sim="1">Sim, apagar</button><button class="pequeno" data-nao="1">Não</button>';
+      return;
+    }
+    dados.locaisExtra = dados.locaisExtra.filter(function (x) { return x !== n; });
+    delete qrMarcados[n];
+    if (sessao.local === n) { sessao.local = ''; guardarEscolha(); }
+    guardar(true); desenharResumo(); desenharPerguntas(); desenharListaQR();
+    msgCampo('qr-msg', '✓ Apagado: ' + n + '. Os equipamentos já lidos ali ficam como estão.', 'ok-t');
+  });
+  // Acrescenta nomes à lista de locais; devolve quantos eram novos
+  function acrescentarLocais(nomes) {
+    var novos = 0;
+    nomes.forEach(function (v) {
+      v = String(v || '').replace(/\s+/g, ' ').trim(); if (!v) return;
+      var igual = locais().filter(function (l) { return l.toLowerCase() === v.toLowerCase(); })[0];
+      if (!igual) { dados.locaisExtra.push(v); novos++; }
+      qrMarcados[igual || v] = 1;
+    });
+    if (novos) { guardar(true); desenharResumo(); desenharPerguntas(); }
+    desenharListaQR();
+    return novos;
+  }
+  $('det-qr').addEventListener('toggle', function () {
+    if (!this.open) return;
+    try { if (!$('qr-base').value) $('qr-base').value = localStorage.getItem(CHAVE_QR_BASE) || ''; } catch (e) {}
+    desenharListaQR();
+  });
+  $('btn-qr-novo').addEventListener('click', function () {
+    var v = $('qr-novo').value.replace(/\s+/g, ' ').trim();
+    if (!v) { msgCampo('qr-msg', '! Escreva o nome do local e toque em "Acrescentar".', 'aviso-t'); $('qr-novo').focus(); return; }
+    var novo = acrescentarLocais([v]);
+    $('qr-novo').value = '';
+    msgCampo('qr-msg', novo ? '✓ Acrescentado e marcado: ' + v + '.' : '✓ "' + v + '" já existia. Ficou marcado.', 'ok-t');
+  });
+  $('qr-novo').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('btn-qr-novo').click(); } });
   $('btn-qr-acrescentar').addEventListener('click', function () {
     var base = $('qr-base').value.replace(/\s+/g, ' ').trim();
-    if (!base) { msgCampo('qr-msg', '! Escreva onde estão os armários.', 'aviso-t'); $('qr-base').focus(); return; }
-    var na = Math.max(1, Math.min(30, parseInt($('qr-arm').value, 10) || 1)), np = Math.max(1, Math.min(10, parseInt($('qr-prat').value, 10) || 1));
-    var novas = [];
-    for (var a = 1; a <= na; a++) for (var p = 1; p <= np; p++) novas.push(base + ' · Armário ' + a + ' · Prateleira ' + p);
-    var atual = $('qr-locais').value.replace(/\s+$/, '');
-    $('qr-locais').value = (atual ? atual + '\n' : '') + novas.join('\n');
-    msgCampo('qr-msg', '✓ Acrescentei ' + novas.length + ' prateleiras à lista.', 'ok-t');
+    if (!base) { msgCampo('qr-msg', '! Escreva onde estão os armários (por exemplo, Gabinete).', 'aviso-t'); $('qr-base').focus(); return; }
+    var num = function (id, max) { return Math.max(1, Math.min(max, parseInt($(id).value, 10) || 1)); };
+    var a1 = num('qr-arm-de', 50), a2 = num('qr-arm-ate', 50), p1 = num('qr-prat-de', 20), p2 = num('qr-prat-ate', 20);
+    if (a2 < a1) { var ta = a1; a1 = a2; a2 = ta; }
+    if (p2 < p1) { var tp = p1; p1 = p2; p2 = tp; }
+    var nomes = [];
+    for (var a = a1; a <= a2; a++) for (var p = p1; p <= p2; p++) nomes.push(base + ' · Armário ' + a + ' · Prateleira ' + p);
+    if (nomes.length > 200) { msgCampo('qr-msg', '! São ' + nomes.length + ' prateleiras. Confirme os números (máximo 200 de cada vez).', 'aviso-t'); return; }
+    try { localStorage.setItem(CHAVE_QR_BASE, base); } catch (e) {}
+    var novos = acrescentarLocais(nomes);
+    msgCampo('qr-msg', '✓ ' + (nomes.length === 1 ? '1 prateleira marcada' : nomes.length + ' prateleiras marcadas') +
+      (novos < nomes.length ? ' (' + (nomes.length - novos) + ' já existia' + (nomes.length - novos === 1 ? '' : 'm') + ')' : '') + ': ' + nomes.join('; ') + '.', 'ok-t');
   });
-  function nomesQR() {
-    var vistosQR = {};
-    return $('qr-locais').value.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); })
-      .filter(function (l) { var k = l.toLowerCase(); if (!l || vistosQR[k]) return false; vistosQR[k] = 1; return true; });
-  }
+  $('btn-qr-todos').addEventListener('click', function () { locais().forEach(function (n) { qrMarcados[n] = 1; }); desenharListaQR(); });
+  $('btn-qr-nenhum').addEventListener('click', function () { qrMarcados = {}; desenharListaQR(); });
+  function nomesQR() { return ordenarNomes(locais()).filter(function (n) { return qrMarcados[n]; }); }
   $('btn-qr-imprimir').addEventListener('click', function () {
     var nomes = nomesQR();
-    if (!nomes.length) { msgCampo('qr-msg', '! Escreva pelo menos um local na lista.', 'aviso-t'); return; }
+    if (!nomes.length) { msgCampo('qr-msg', '! Marque pelo menos um local na lista.', 'aviso-t'); return; }
     if (!window.qrcode || !window.jspdf) { msgCampo('qr-msg', '✗ O criador do PDF não carregou. Feche e volte a abrir a ferramenta.', 'erro-t'); return; }
     window.qrcode.stringToBytes = window.qrcode.stringToBytesFuncs['UTF-8'];
     var lado = +$('qr-tam').value || 35;            // lado do QR em mm (sem a margem branca)
