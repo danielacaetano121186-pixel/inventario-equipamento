@@ -16,7 +16,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 22 (22/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 23 (22/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -300,27 +300,24 @@
     <details id="det-qr">
       <summary>Locais e códigos QR</summary>
       <p>Cole um código QR em cada sala, armário ou prateleira. Quando a câmara o lê, o local muda sozinho.</p>
-      <h3>1. Acrescentar um local</h3>
+      <h3>1. Acrescentar locais</h3>
+      <label for="qr-base">Local</label>
       <div class="linha-form">
-        <input type="text" id="qr-novo" placeholder="Por exemplo, Sala B3" maxlength="60" aria-label="Nome do local novo">
-        <button id="btn-qr-novo">Acrescentar</button>
+        <input type="text" id="qr-base" placeholder="Por exemplo, Gabinete" maxlength="40">
       </div>
-      <h3>2. Ou acrescentar prateleiras de armários</h3>
+      <p class="nota">Se o local tem armários, escreva também os números. Se não tem, deixe vazio.</p>
       <div class="linha-form">
-        <input type="text" id="qr-base" placeholder="Onde estão os armários (por exemplo, Gabinete)" maxlength="40" aria-label="Onde estão os armários">
-      </div>
-      <div class="linha-form">
-        <label>Do armário <input type="number" id="qr-arm-de" value="1" min="1" max="50" inputmode="numeric"></label>
-        <label>ao <input type="number" id="qr-arm-ate" value="1" min="1" max="50" inputmode="numeric"></label>
+        <label>Do armário <input type="number" id="qr-arm-de" min="1" max="50" inputmode="numeric"></label>
+        <label>ao <input type="number" id="qr-arm-ate" min="1" max="50" inputmode="numeric"></label>
       </div>
       <div class="linha-form">
-        <label>Da prateleira <input type="number" id="qr-prat-de" value="1" min="1" max="20" inputmode="numeric"></label>
-        <label>à <input type="number" id="qr-prat-ate" value="1" min="1" max="20" inputmode="numeric"></label>
+        <label>Da prateleira <input type="number" id="qr-prat-de" min="1" max="20" inputmode="numeric"></label>
+        <label>à <input type="number" id="qr-prat-ate" min="1" max="20" inputmode="numeric"></label>
       </div>
-      <div class="linha-form"><button id="btn-qr-acrescentar">Acrescentar prateleiras</button></div>
-      <p class="nota">Exemplo: do armário 3 ao 5, da prateleira 5 à 5 cria a prateleira 5 dos armários 3, 4 e 5.</p>
+      <div class="linha-form"><button id="btn-qr-acrescentar">Acrescentar</button></div>
+      <p class="nota">Exemplo: Gabinete, do armário 3 ao 3, da prateleira 4 à 5 cria "Gabinete · Armário 3 · Prateleira 4" e "Gabinete · Armário 3 · Prateleira 5".</p>
       <p id="qr-msg" role="status"></p>
-      <h3>3. Escolher e criar o PDF</h3>
+      <h3>2. Escolher e criar o PDF</h3>
       <p class="nota">Os locais acabados de acrescentar ficam já marcados. O PDF leva só os marcados.</p>
       <div class="linha-form">
         <button class="pequeno" id="btn-qr-todos">Marcar todos</button>
@@ -372,7 +369,7 @@
   </details>
 </section>
 
-<p class="nota sem-impressao" id="versao">Versão 22 (22/10/2026)</p>
+<p class="nota sem-impressao" id="versao">Versão 23 (22/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
@@ -3723,32 +3720,29 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   $('det-qr').addEventListener('toggle', function () {
     if (!this.open) return;
-    try { if (!$('qr-base').value) $('qr-base').value = localStorage.getItem(CHAVE_QR_BASE) || ''; } catch (e) {}
     desenharListaQR();
   });
-  $('btn-qr-novo').addEventListener('click', function () {
-    var v = $('qr-novo').value.replace(/\s+/g, ' ').trim();
-    if (!v) { msgCampo('qr-msg', '! Escreva o nome do local e toque em "Acrescentar".', 'aviso-t'); $('qr-novo').focus(); return; }
-    var novo = acrescentarLocais([v]);
-    $('qr-novo').value = '';
-    msgCampo('qr-msg', novo ? '✓ Acrescentado e marcado: ' + v + '.' : '✓ "' + v + '" já existia. Ficou marcado.', 'ok-t');
-  });
-  $('qr-novo').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('btn-qr-novo').click(); } });
   $('btn-qr-acrescentar').addEventListener('click', function () {
     var base = $('qr-base').value.replace(/\s+/g, ' ').trim();
-    if (!base) { msgCampo('qr-msg', '! Escreva onde estão os armários (por exemplo, Gabinete).', 'aviso-t'); $('qr-base').focus(); return; }
-    var num = function (id, max) { return Math.max(1, Math.min(max, parseInt($(id).value, 10) || 1)); };
-    var a1 = num('qr-arm-de', 50), a2 = num('qr-arm-ate', 50), p1 = num('qr-prat-de', 20), p2 = num('qr-prat-ate', 20);
-    if (a2 < a1) { var ta = a1; a1 = a2; a2 = ta; }
-    if (p2 < p1) { var tp = p1; p1 = p2; p2 = tp; }
+    if (!base) { msgCampo('qr-msg', '! Escreva o nome do local (por exemplo, Gabinete).', 'aviso-t'); $('qr-base').focus(); return; }
+    // Número escrito ou 0 se a caixa estiver vazia
+    var num = function (id, max) { var v = parseInt($(id).value, 10); return v > 0 ? Math.min(max, v) : 0; };
+    var par = function (d, a) { if (!d) d = a; if (!a) a = d; return d <= a ? [d, a] : [a, d]; };
+    var ar = par(num('qr-arm-de', 50), num('qr-arm-ate', 50)), pr = par(num('qr-prat-de', 20), num('qr-prat-ate', 20));
+    if (pr[0] && !ar[0]) { msgCampo('qr-msg', '! Escreveu prateleiras mas falta o número do armário.', 'aviso-t'); $('qr-arm-de').focus(); return; }
     var nomes = [];
-    for (var a = a1; a <= a2; a++) for (var p = p1; p <= p2; p++) nomes.push(base + ' · Armário ' + a + ' · Prateleira ' + p);
-    if (nomes.length > 200) { msgCampo('qr-msg', '! São ' + nomes.length + ' prateleiras. Confirme os números (máximo 200 de cada vez).', 'aviso-t'); return; }
-    try { localStorage.setItem(CHAVE_QR_BASE, base); } catch (e) {}
+    if (!ar[0]) nomes.push(base);
+    else for (var a = ar[0]; a <= ar[1]; a++) {
+      if (!pr[0]) nomes.push(base + ' · Armário ' + a);
+      else for (var p = pr[0]; p <= pr[1]; p++) nomes.push(base + ' · Armário ' + a + ' · Prateleira ' + p);
+    }
+    if (nomes.length > 200) { msgCampo('qr-msg', '! Seriam ' + nomes.length + ' locais. Confirme os números (máximo 200 de cada vez).', 'aviso-t'); return; }
     var novos = acrescentarLocais(nomes);
-    msgCampo('qr-msg', '✓ ' + (nomes.length === 1 ? '1 prateleira marcada' : nomes.length + ' prateleiras marcadas') +
-      (novos < nomes.length ? ' (' + (nomes.length - novos) + ' já existia' + (nomes.length - novos === 1 ? '' : 'm') + ')' : '') + ': ' + nomes.join('; ') + '.', 'ok-t');
+    if (!novos) { msgCampo('qr-msg', '✓ ' + (nomes.length === 1 ? 'Este local já existia' : 'Estes locais já existiam') + '. Ficou marcado na lista em baixo.', 'ok-t'); return; }
+    msgCampo('qr-msg', '✓ Acrescentado e marcado: ' + nomes.join('; ') + '.' +
+      (novos < nomes.length ? ' (' + (nomes.length - novos) + ' já existia' + (nomes.length - novos === 1 ? '' : 'm') + '.)' : ''), 'ok-t');
   });
+  $('qr-base').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('btn-qr-acrescentar').click(); } });
   $('btn-qr-todos').addEventListener('click', function () { locais().forEach(function (n) { qrMarcados[n] = 1; }); desenharListaQR(); });
   $('btn-qr-nenhum').addEventListener('click', function () { qrMarcados = {}; desenharListaQR(); });
   function nomesQR() { return ordenarNomes(locais()).filter(function (n) { return qrMarcados[n]; }); }
