@@ -16,7 +16,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 24 (23/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 25 (23/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -200,6 +200,12 @@
   .aviso-geral { border-radius:14px; }
   #faixa { background:rgba(59,31,143,.94); border-radius:14px; }
   @media print { .so-impressao-h1 { display:block; } }
+  /* Câmara mais pequena; o resultado aparece logo por baixo da imagem, sem a tapar (versão 25) */
+  video { height:21vh; min-height:140px; border-radius:16px; }
+  #video-wrap { background:transparent; box-shadow:none; overflow:visible; }
+  #mira { top:14px; bottom:auto; height:calc(max(21vh, 140px) - 28px); }
+  #mira-txt { bottom:auto; top:calc(max(21vh, 140px) - 26px); }
+  #faixa { position:static; width:100%; margin:6px 0 0; border-radius:14px; }
 </style>
 <main>
 <header class="topo sem-impressao">
@@ -401,7 +407,7 @@
   </details>
 </section>
 
-<p class="nota sem-impressao" id="versao">Versão 24 (23/10/2026)</p>
+<p class="nota sem-impressao" id="versao">Versão 25 (23/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
