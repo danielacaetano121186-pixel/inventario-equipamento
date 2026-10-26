@@ -6,9 +6,9 @@
 <title>Resultados CUCo</title>
 <style>
 :root{
-  --fundo:#FBF7EE; --cartao:#FFFFFF; --texto:#1F2937; --cinza:#5B6472;
-  --azul:#1E3A8A; --azul2:#E8F0FB; --ambar:#E8A31B; --ambar2:#FDF1D6;
-  --verde:#2E7D32; --verde2:#E3F2E4; --linha:#E5DFD3;
+  --fundo:#F5F7FA; --cartao:#FFFFFF; --texto:#1F2937; --cinza:#5B6472;
+  --azul:#3D618B; --azul2:#EAF0F6; --ambar:#E8A31B; --ambar2:#FDF1D6;
+  --verde:#2E7D32; --verde2:#E3F2E4; --linha:#DDE4EC;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
@@ -55,7 +55,7 @@ main{flex:1;display:flex;flex-direction:column;gap:max(14px,1.6vw);padding:max(1
 .pessoas{display:flex;flex-wrap:wrap;gap:4px;min-height:30px}
 .pessoa{width:clamp(22px,2.4vw,34px);height:clamp(22px,2.4vw,34px);animation:aparece .5s cubic-bezier(.2,1.5,.4,1) both}
 @keyframes aparece{from{transform:scale(0)}to{transform:none}}
-.barra{height:12px;border-radius:6px;background:#EEE9DE;overflow:hidden;margin-top:auto}
+.barra{height:12px;border-radius:6px;background:#E6ECF2;overflow:hidden;margin-top:auto}
 .barra i{display:block;height:100%;width:0;border-radius:6px;background:var(--azul);transition:width 1s ease}
 .c2 .barra i{background:var(--ambar)}.c3 .barra i{background:var(--verde)}
 .dica-virar{font-size:13px;color:var(--cinza)}
@@ -184,7 +184,7 @@ footer{padding:6px max(20px,3vw) 12px;color:var(--cinza);font-size:13px;display:
   function $(id){ return document.getElementById(id); }
   var ultimoTotal = -1, sugestoesVistas = {};
 
-  var CORES = {p1:"#1E3A8A", p2:"#E8A31B", p3:"#2E7D32"};
+  var CORES = {p1:"#3D618B", p2:"#E8A31B", p3:"#2E7D32"};
   function boneco(cheio, cor, atraso){
     var ns = "http://www.w3.org/2000/svg";
     var s = document.createElementNS(ns, "svg");
@@ -272,7 +272,7 @@ footer{padding:6px max(20px,3vw) 12px;color:var(--cinza);font-size:13px;display:
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     var cv = $("confettis"), cx = cv.getContext("2d");
     cv.width = innerWidth; cv.height = innerHeight;
-    var cores = ["#1E3A8A","#E8A31B","#2E7D32","#BE185D","#0E7490"], ps = [];
+    var cores = ["#3D618B","#E8A31B","#2E7D32","#BE185D","#0E7490"], ps = [];
     for (var i = 0; i < 90; i++) ps.push({x: innerWidth / 2 + (Math.random() - .5) * 200, y: 60, vx: (Math.random() - .5) * 12, vy: Math.random() * -6 - 2, r: Math.random() * 6 + 4, c: cores[i % cores.length], a: Math.random() * 6});
     var t = 0;
     (function anima(){
