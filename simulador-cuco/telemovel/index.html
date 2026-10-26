@@ -222,7 +222,9 @@ header.topo h1{font-size:19px;margin:0;line-height:1.3;color:var(--azul);font-we
 .prog-parte i{flex:1;height:9px;border-radius:5px;background:var(--linha);transition:background .3s}
 .prog-parte i.feito{background:var(--azul)}
 .prog-parte i.atual{background:var(--ambar)}
-.prog-legenda{display:flex;gap:10px;font-size:12px;color:#5B6472;margin-top:3px}
+.barra-unica{height:12px;border-radius:6px;background:var(--linha);overflow:hidden}
+#progFill{height:100%;width:0;background:var(--azul);border-radius:6px;transition:width .4s}
+.prog-linha{font-size:14px}
 .botoes-topo button,.botoes-topo a.botao{min-height:38px;padding:4px 14px;font-size:15px;border-radius:999px}
 
 main{padding:10px 20px 20px}
@@ -282,8 +284,7 @@ body{background:var(--fundo) url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB
   </div>
   <div class="progresso" aria-hidden="true">
     <div class="prog-linha"><span id="progTxt"></span><span id="progPct"></span></div>
-    <div class="prog-barras"><div class="prog-parte p1" id="prog1"></div><div class="prog-parte p2" id="prog2"></div></div>
-    <div class="prog-legenda"><span class="p1">Parte 1 · Desbloquear</span><span class="p2">Parte 2 · Atualizar</span></div>
+    <div class="barra-unica"><div id="progFill"></div></div>
   </div>
   <div class="botoes-topo">
     <a id="btnEnviar" class="botao" href="#" target="_blank" rel="noopener" role="button">Enviar resultado</a>
@@ -627,15 +628,13 @@ body{background:var(--fundo) url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB
 
   function render(){
     var p = passos[passo];
-    $("numPasso").textContent = passo < 10 ? ("Parte 1: desbloquear · Passo " + (passo+1) + " de 10")
-      : passo < TOTAL ? ("Parte 2: atualizar · Passo " + (passo-9) + " de 9") : "Fim";
+    $("numPasso").textContent = passo < 10 ? ("Passo " + (passo+1) + " de 10")
+      : passo < TOTAL ? ("Passo " + (passo-9) + " de 9") : "Fim";
     $("textoPasso").textContent = p.texto;
     $("numCirculo").textContent = passo === TOTAL ? "✓" : (passo < 10 ? passo + 1 : passo - 9);
-    $("progTxt").textContent = passo < TOTAL ? ("Passo " + (passo + 1) + " de " + TOTAL) : "Concluído";
+    $("progTxt").textContent = passo < 10 ? "Parte 1 · Desbloquear" : passo < TOTAL ? "Parte 2 · Atualizar" : "Concluído";
     $("progPct").textContent = Math.round(passo / TOTAL * 100) + "%";
-    Array.prototype.forEach.call(document.querySelectorAll(".prog-parte i"), function(seg, k){
-      seg.className = k < passo ? "feito" : (k === passo ? "atual" : "");
-    });
+    $("progFill").style.width = Math.round(passo / TOTAL * 100) + "%";
 
     // Computador
     if (passo === 0) mostrarPc("pcDesligado");
@@ -1031,12 +1030,6 @@ body{background:var(--fundo) url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB
   window.addEventListener("resize", ajustar);
   document.addEventListener("fullscreenchange", function(){ setTimeout(ajustar, 100); });
 
-  (function(){
-    var h1 = "", h2 = "";
-    for (var k = 0; k < 10; k++) h1 += "<i></i>";
-    for (k = 0; k < 9; k++) h2 += "<i></i>";
-    $("prog1").innerHTML = h1; $("prog2").innerHTML = h2;
-  })();
   iniciar();
 })();
 </script>
