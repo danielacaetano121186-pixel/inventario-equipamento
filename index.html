@@ -16,7 +16,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 25 (23/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 26 (26/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -206,6 +206,18 @@
   #mira { top:14px; bottom:auto; height:calc(max(21vh, 140px) - 28px); }
   #mira-txt { bottom:auto; top:calc(max(21vh, 140px) - 26px); }
   #faixa { position:static; width:100%; margin:6px 0 0; border-radius:14px; }
+  /* ===== Saída e entrada (versão 26) ===== */
+  .modos { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; background:#fff; border-radius:16px; padding:5px; margin:4px 0 6px; box-shadow:0 2px 10px rgba(58,30,140,.12); }
+  .modos button { min-height:46px; border:0; border-radius:12px; background:transparent; color:var(--azul); font-weight:bold; padding:6px 4px; }
+  .modos button.ativo { background:linear-gradient(135deg, #3B1F8F, #5B36D0); color:#fff; }
+  .modos button[data-modo=saida].ativo { background:#B45309; }
+  .modos button[data-modo=entrada].ativo { background:#047857; }
+  #modo-txt { margin:0 0 6px; padding:8px 12px; border-radius:12px; font-weight:bold; }
+  #modo-txt.saida { background:#FEF3C7; color:#78350F; }
+  #modo-txt.entrada { background:#D1FAE5; color:#064E3B; }
+  body.modo-saida .resumo { display:none; }
+  body.modo-saida #video-wrap { outline:5px solid #D97706; outline-offset:-5px; }
+  body.modo-entrada #video-wrap { outline:5px solid #059669; outline-offset:-5px; }
 </style>
 <main>
 <header class="topo sem-impressao">
@@ -254,11 +266,18 @@
       <ol style="margin:0 0 10px; padding-left:28px; font-weight:normal">
         <li>No topo, escolha o local e o estado. Também pode ler o código QR do local.</li>
         <li>Toque em "Ligar a câmara" e aponte às etiquetas, uma atrás da outra. A ferramenta sabe sozinha se é PC ou hotspot.</li>
+        <li>Para entregar equipamento, toque em "Saída" e leia as etiquetas. Quando voltar, toque em "Entrada".</li>
         <li>No fim do dia, exporte para Excel no separador "2. Lista".</li>
         <li>Inícios dos n.º de série, códigos QR e apagar locais: separador "3. Definições".</li>
       </ol>
       <button class="pequeno" id="btn-ajuda-ok">Já percebi</button>
     </div>
+    <div class="modos" role="group" aria-label="O que está a fazer">
+      <button type="button" data-modo="inv" class="ativo" aria-pressed="true">Inventário</button>
+      <button type="button" data-modo="saida" aria-pressed="false">↗ Saída</button>
+      <button type="button" data-modo="entrada" aria-pressed="false">↙ Entrada</button>
+    </div>
+    <p id="modo-txt" hidden></p>
     <div class="resumo">
       <label class="campo-r">Local <select id="r-local"></select></label>
       <label class="campo-r">Estado <select id="r-estado"></select></label>
@@ -407,7 +426,7 @@
   </details>
 </section>
 
-<p class="nota sem-impressao" id="versao">Versão 25 (23/10/2026)</p>
+<p class="nota sem-impressao" id="versao">Versão 26 (26/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
@@ -3445,6 +3464,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // ---------- Configuração ----------
   // Os locais não ficam no código (o site é público): são acrescentados no telemóvel e guardados só lá.
   var LOCAIS_BASE = [];
+  // Equipamento entregue (saída): fica no registo com este local e este estado
+  var FORA = 'Fora da escola', ENTREGUE = 'Entregue';
   var ESTADOS = ['Com auto assinado', 'Sem auto assinado', 'Com aluno', 'Não sei o estado'];
   var TIPOS = ['PC', 'Hotspot']; // decidido pelo n.º de série (ver tipoDe)
   var CHAVE = 'inventario_equipamento_v1';
@@ -3500,9 +3521,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   // ---------- Dados guardados ----------
   // Só neste aparelho (localStorage). Nada sai do telemóvel.
   // mudancas, primeiraMudanca e exportado servem o lembrete da cópia em Excel
-  var dados = { itens: [], locaisExtra: [], estadosExtra: [], iniciosPC: INICIOS_PC.slice(), iniciosHS: [], versaoInicios: VERSAO_INICIOS, atualizado: 0, mudancas: 0, primeiraMudanca: 0, exportado: 0 };
+  var dados = { itens: [], movimentos: [], locaisExtra: [], estadosExtra: [], iniciosPC: INICIOS_PC.slice(), iniciosHS: [], versaoInicios: VERSAO_INICIOS, atualizado: 0, mudancas: 0, primeiraMudanca: 0, exportado: 0 };
   function aplicar(o) {
     dados.itens = Array.isArray(o.itens) ? o.itens : [];
+    dados.movimentos = Array.isArray(o.movimentos) ? o.movimentos : [];
     dados.locaisExtra = Array.isArray(o.locaisExtra) ? o.locaisExtra : [];
     dados.estadosExtra = Array.isArray(o.estadosExtra) ? o.estadosExtra : [];
     if (Array.isArray(o.iniciosPC)) dados.iniciosPC = o.iniciosPC;
@@ -3512,7 +3534,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       INICIOS_PC.forEach(function (i) { if (dados.iniciosPC.indexOf(i) < 0) dados.iniciosPC.push(i); });
     }
     dados.versaoInicios = VERSAO_INICIOS;
-    dados.itens.forEach(function (it) { if (it.local && dados.locaisExtra.indexOf(it.local) < 0) dados.locaisExtra.push(it.local); });
+    dados.itens.forEach(function (it) { if (it.local && it.local !== FORA && dados.locaisExtra.indexOf(it.local) < 0) dados.locaisExtra.push(it.local); });
     dados.atualizado = o.atualizado || 0;
     dados.exportado = o.exportado || 0;
     if (typeof o.mudancas === 'number') { dados.mudancas = o.mudancas; dados.primeiraMudanca = o.primeiraMudanca || 0; }
@@ -3545,8 +3567,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     return ok;
   }
 
-  function locais() { return LOCAIS_BASE.concat(dados.locaisExtra); }
-  function estados() { return ESTADOS.concat(dados.estadosExtra); }
+  function locais() { return LOCAIS_BASE.concat(dados.locaisExtra).filter(function (l) { return l !== FORA; }); }
+  function estados() { return ESTADOS.concat(dados.estadosExtra).filter(function (e) { return e !== ENTREGUE; }); }
   function procurar(serie) {
     for (var i = 0; i < dados.itens.length; i++) if (dados.itens[i].serie === serie) return dados.itens[i];
     return null;
@@ -3565,12 +3587,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
 
   // ---------- 1. Perguntas ----------
-  var sessao = { local: '', estado: '' };
+  // modo: 'inv' (inventário), 'saida' ou 'entrada'. Começa sempre em inventário, para não registar saídas por engano.
+  var sessao = { local: '', estado: '', modo: 'inv' };
   var lidosSessao = [];
 
   // A última escolha (local, estado, tipo) fica guardada para a próxima vez. Não tem dados pessoais.
   var CHAVE_ESCOLHA = 'inventario_escolha';
-  function guardarEscolha() { try { localStorage.setItem(CHAVE_ESCOLHA, JSON.stringify(sessao)); } catch (e) {} }
+  function guardarEscolha() { try { localStorage.setItem(CHAVE_ESCOLHA, JSON.stringify({ local: sessao.local, estado: sessao.estado })); } catch (e) {} }
   function carregarEscolha() {
     try {
       var o = JSON.parse(localStorage.getItem(CHAVE_ESCOLHA) || 'null');
@@ -3991,7 +4014,93 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     mostrarUltimo('ok', '<p class="ok-t">✓ Local mudado</p><p class="grande">' + esc(nome) + '</p><p>Os próximos equipamentos ficam registados aqui.</p>');
   }
 
+  function mudarModo(m) {
+    sessao.modo = m;
+    var bs = document.querySelectorAll('.modos button');
+    for (var k = 0; k < bs.length; k++) {
+      var on = bs[k].getAttribute('data-modo') === m;
+      bs[k].classList.toggle('ativo', on); bs[k].setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    document.body.classList.toggle('modo-saida', m === 'saida');
+    document.body.classList.toggle('modo-entrada', m === 'entrada');
+    var p = $('modo-txt');
+    p.className = m === 'inv' ? '' : m;
+    p.hidden = m === 'inv';
+    p.textContent = m === 'saida' ? 'Saída: cada equipamento lido fica "Entregue", fora da escola. Não guarda dados do aluno.'
+      : m === 'entrada' ? 'Entrada: cada equipamento entregue que ler volta para o local e o estado escolhidos em baixo.' : '';
+    $('mira-txt').textContent = m === 'saida' ? 'Saída: aponte às etiquetas' : m === 'entrada' ? 'Entrada: aponte às etiquetas' : 'Aponte às etiquetas';
+    vistos = {}; ultimoCod = '';
+    mostrarUltimo('', '');
+    atualizarContagens();
+  }
+  (function () {
+    var bs = document.querySelectorAll('.modos button');
+    for (var k = 0; k < bs.length; k++) bs[k].addEventListener('click', function () { mudarModo(this.getAttribute('data-modo')); });
+  })();
+
+  function registarMov(it, mov, de) {
+    var m = { serie: it.serie, tipo: it.tipo, mov: mov, quando: new Date().toISOString(), de: de || '', para: it.local + ' · ' + it.estado };
+    dados.movimentos.push(m);
+    return m;
+  }
+  function copiaItem(it) { return { tipo: it.tipo, local: it.local, estado: it.estado, quando: it.quando }; }
+  function repor(it, c) { it.tipo = c.tipo; it.local = c.local; it.estado = c.estado; it.quando = c.quando; }
+  // Botão "Anular": repõe o equipamento como estava e apaga o movimento
+  function ligarAnular(it, antes, m, txt) {
+    $('u-anular-mov').addEventListener('click', function () {
+      if (antes) repor(it, antes);
+      else { dados.itens = dados.itens.filter(function (x) { return x !== it; }); lidosSessao = lidosSessao.filter(function (x) { return x !== it; }); }
+      dados.movimentos = dados.movimentos.filter(function (x) { return x !== m; });
+      guardar();
+      mostrarUltimo('aviso', '<p class="aviso-t">! ' + txt + ' anulada: ' + esc(it.serie) + '</p>');
+      ultimoCod = ''; vistos = {};
+      atualizarContagens();
+    });
+  }
+  // Saída: o equipamento fica "Entregue", fora da escola. Devolve 'ok' ou 'ja'.
+  function registarSaida(serie, tipo, semMostrar) {
+    var ex = procurar(serie);
+    if (ex && ex.estado === ENTREGUE) {
+      if (!semMostrar) {
+        som('repetido');
+        mostrarUltimo('aviso', '<p class="aviso-t">! Já estava entregue</p><p class="grande">' + esc(serie) + '</p>' +
+          '<p>Saiu a ' + dataTxt(ex.quando) + ' às ' + horaTxt(ex.quando) + '. Não mudei nada.</p>');
+      }
+      return 'ja';
+    }
+    var antes = ex ? copiaItem(ex) : null, de = ex ? ex.local + ' · ' + ex.estado : '';
+    if (!ex) { ex = { serie: serie, tipo: tipo, local: FORA, estado: ENTREGUE, quando: new Date().toISOString() }; dados.itens.push(ex); }
+    else { ex.tipo = tipo; ex.local = FORA; ex.estado = ENTREGUE; ex.quando = new Date().toISOString(); }
+    var m = registarMov(ex, 'Saída', de);
+    guardar();
+    if (lidosSessao.indexOf(ex) < 0) lidosSessao.unshift(ex);
+    if (!semMostrar) {
+      som(true);
+      mostrarUltimo('ok', '<p class="ok-t">✓ Saída registada</p><p class="grande">' + esc(serie) + '</p>' +
+        '<p>' + esc(tipo) + ' · Entregue · ' + horaTxt(ex.quando) + '</p>' +
+        (antes ? '<p>Estava em: ' + esc(de) + '.</p>' : '<p>Não estava no inventário. Ficou registado como entregue.</p>') + htmlAluno(serie, true) +
+        '<div class="linha-form"><button class="pequeno perigo" id="u-anular-mov">Anular esta saída</button></div>');
+      ligarAnular(ex, antes, m, 'Saída');
+    }
+    return 'ok';
+  }
+  // Entrada de um equipamento entregue: volta para o local e o estado escolhidos
+  function registarEntrada(ex, tipo) {
+    var antes = copiaItem(ex), saiu = ex.quando;
+    ex.tipo = tipo; ex.local = sessao.local; ex.estado = sessao.estado; ex.quando = new Date().toISOString();
+    var m = registarMov(ex, 'Entrada', FORA + ' · ' + ENTREGUE);
+    guardar();
+    if (lidosSessao.indexOf(ex) < 0) lidosSessao.unshift(ex);
+    som(true);
+    mostrarUltimo('ok', '<p class="ok-t">✓ Entrada registada</p><p class="grande">' + esc(ex.serie) + '</p>' +
+      '<p>' + esc(ex.tipo) + ' · ' + esc(ex.local) + ' · ' + esc(ex.estado) + '</p>' +
+      '<p>Estava entregue desde ' + dataTxt(saiu) + '.</p>' + htmlAluno(ex.serie, true) +
+      '<div class="linha-form"><button class="pequeno perigo" id="u-anular-mov">Anular esta entrada</button></div>');
+    ligarAnular(ex, antes, m, 'Entrada');
+  }
+
   function faltaEscolha() {
+    if (sessao.modo === 'saida') return false;
     if (sessao.local && sessao.estado) return false;
     som(false);
     mostrarUltimo('aviso', '<p class="aviso-t">! Escolha primeiro ' + (!sessao.local && !sessao.estado ? 'o local e o estado' : !sessao.local ? 'o local' : 'o estado') + ', no topo do ecrã.</p>' +
@@ -4022,10 +4131,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (!hsConhecido(serie)) { perguntarDesconhecido(serie); return; }
     }
 
+    if (sessao.modo === 'saida') { var rs = registarSaida(serie, tipo); atualizarContagens(); return rs; }
     var ex = procurar(serie);
+    if (sessao.modo === 'entrada' && ex && ex.estado === ENTREGUE) { registarEntrada(ex, tipo); atualizarContagens(); return; }
     if (!ex) {
       var item = { serie: serie, tipo: tipo, local: sessao.local, estado: sessao.estado, quando: new Date().toISOString() };
       dados.itens.push(item);
+      if (sessao.modo === 'entrada') registarMov(item, 'Entrada', '');
       guardar();
       lidosSessao.unshift(item);
       som(naLista(item));
@@ -4132,7 +4244,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     $('n-sessao').textContent = lidosSessao.length;
     $('n-total').textContent = dados.itens.length;
     desenharSessao();
-    if (sessao.local) {
+    if (sessao.modo === 'saida') {
+      var ent = 0, hojeS = dataTxt(new Date().toISOString()), saiuHoje = 0;
+      dados.itens.forEach(function (it) { if (it.estado === ENTREGUE) ent++; });
+      dados.movimentos.forEach(function (m) { if (m.mov === 'Saída' && dataTxt(m.quando) === hojeS) saiuHoje++; });
+      $('r-cont').textContent = 'Entregues: ' + ent + ' · Saídas hoje: ' + saiuHoje;
+    } else if (sessao.local) {
       var pc = 0, hs = 0;
       dados.itens.forEach(function (it) { if (it.local === sessao.local) { if (it.tipo === 'Hotspot') hs++; else pc++; } });
       var hoje = dataTxt(new Date().toISOString()), nh = 0;
@@ -4773,6 +4890,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (!series.length) return;
     if (series.length === 1) { delete vistos[series[0]]; registar(series[0], 'camara'); return; }
     ultimoCod = series[series.length - 1]; ultimoT = agora;
+    if (sessao.modo === 'saida') {
+      ultimoPC = agora;
+      var feitos = [], ja = [];
+      series.forEach(function (s) { (registarSaida(s, 'PC', true) === 'ok' ? feitos : ja).push(s); });
+      var li = function (l) { return '<ul>' + l.map(function (s) { return '<li><b class="serie">' + esc(s) + '</b></li>'; }).join('') + '</ul>'; };
+      som(feitos.length ? true : 'repetido');
+      mostrarUltimo(feitos.length ? 'ok' : 'aviso',
+        (feitos.length ? '<p class="ok-t">✓ Saída de ' + feitos.length + ' equipamentos</p>' + li(feitos) : '<p class="aviso-t">! Já estavam todos entregues</p>') +
+        (feitos.length && ja.length ? '<p>Já estavam entregues (não mudei nada):</p>' + li(ja) : !feitos.length ? li(ja) : ''));
+      atualizarContagens();
+      return;
+    }
+    if (sessao.modo === 'entrada') {
+      // Na entrada, um de cada vez (cada um pode precisar de resposta)
+      series.forEach(function (s) { registar(s, 'varios'); });
+      return;
+    }
     var alvo = { local: sessao.local, estado: sessao.estado, tipo: 'PC' };
     ultimoPC = agora;
     var r = { novos: [], iguais: [], outros: [], movidos: [], alvo: alvo };
@@ -4957,7 +5091,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     fl.innerHTML = '<option value="">Todos os locais</option>' + Object.keys(ls).map(function (l) {
       return '<option' + (l === vl ? ' selected' : '') + '>' + esc(l) + '</option>';
     }).join('');
-    fe.innerHTML = '<option value="">Todos os estados</option>' + estados().map(function (e) {
+    var lsE = estados().slice();
+    if (dados.itens.some(function (it) { return it.estado === ENTREGUE; })) lsE.push(ENTREGUE);
+    fe.innerHTML = '<option value="">Todos os estados</option>' + lsE.map(function (e) {
       return '<option' + (e === ve ? ' selected' : '') + '>' + esc(e) + '</option>';
     }).join('');
   }
@@ -4971,10 +5107,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
   function desenharLista() {
     preencherFiltros();
-    var cont = { total: dados.itens.length, PC: 0, Hotspot: 0 };
-    dados.itens.forEach(function (it) { cont[it.tipo] = (cont[it.tipo] || 0) + 1; });
+    var cont = { total: dados.itens.length, PC: 0, Hotspot: 0, ent: 0 };
+    dados.itens.forEach(function (it) { cont[it.tipo] = (cont[it.tipo] || 0) + 1; if (it.estado === ENTREGUE) cont.ent++; });
     $('contagens').innerHTML = '<div>Total: <b>' + cont.total + '</b></div><div>PC: <b>' + cont.PC +
-      '</b></div><div>Hotspots: <b>' + cont.Hotspot + '</b></div>';
+      '</b></div><div>Hotspots: <b>' + cont.Hotspot + '</b></div><div>Na escola: <b>' + (cont.total - cont.ent) +
+      '</b></div><div>Entregues: <b>' + cont.ent + '</b></div>';
 
     var lista = itensFiltrados();
     if (!dados.itens.length) { $('tabela-lista').innerHTML = '<p>Ainda não há equipamento lido.</p>'; return; }
@@ -5068,6 +5205,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       .concat(dados.iniciosHS.map(function (v) { return ['Início hotspot', v]; }))
       .concat(dados.locaisExtra.map(function (v) { return ['Local', v]; }))
       .concat(dados.estadosExtra.map(function (v) { return ['Estado', v]; }));
+    if (dados.movimentos.length) {
+      XLSX.utils.book_append_sheet(wb, folha(['N.º de série', 'Tipo', 'Movimento', 'Data', 'Hora', 'De', 'Para'],
+        dados.movimentos.map(function (m) { return [m.serie, m.tipo, m.mov, dataTxt(m.quando), horaTxt(m.quando), m.de, m.para]; }),
+        [22, 10, 11, 12, 8, 30, 30]), 'Movimentos');
+    }
     XLSX.utils.book_append_sheet(wb, folha(['Definição', 'Valor'], defs, [14, 30]), 'Definições');
     var nome = nomeFicheiro('Inventario');
     var dica = ' Guarde em "No meu iPhone".';
@@ -5145,8 +5287,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           if (!v) return;
           if (k === 'iniciopc') { v = norm(v); if (dados.iniciosPC.indexOf(v) < 0) { dados.iniciosPC.push(v); defs++; } }
           else if (k === 'iniciohotspot') { v = norm(v); if (dados.iniciosHS.indexOf(v) < 0) { dados.iniciosHS.push(v); defs++; } }
-          else if (k === 'local' && locais().indexOf(v) < 0) { dados.locaisExtra.push(v); defs++; }
-          else if (k === 'estado' && estados().indexOf(v) < 0) { dados.estadosExtra.push(v); defs++; }
+          else if (k === 'local' && v !== FORA && locais().indexOf(v) < 0) { dados.locaisExtra.push(v); defs++; }
+          else if (k === 'estado' && v !== ENTREGUE && estados().indexOf(v) < 0) { dados.estadosExtra.push(v); defs++; }
         });
       }
       rows.slice(1).forEach(function (r) {
@@ -5157,9 +5299,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         if (md) quando = new Date(+md[3], +md[2] - 1, +md[1], mh ? +mh[1] : 0, mh ? +mh[2] : 0).toISOString();
         var tipo = TIPOS.indexOf(String(r[ct]).trim()) >= 0 ? String(r[ct]).trim() : 'PC';
         var estado = String(r[ce] || '').trim();
-        if (estado && estados().indexOf(estado) < 0) dados.estadosExtra.push(estado);
+        if (estado && estado !== ENTREGUE && estados().indexOf(estado) < 0) dados.estadosExtra.push(estado);
         var local = String(r[cl] || '').trim();
-        if (local && locais().indexOf(local) < 0) dados.locaisExtra.push(local);
+        if (local && local !== FORA && locais().indexOf(local) < 0) dados.locaisExtra.push(local);
         var ex = procurar(serie);
         if (!ex) { dados.itens.push({ serie: serie, tipo: tipo, local: local, estado: estado, quando: quando }); novos++; }
         else if (new Date(quando) > new Date(ex.quando)) { ex.tipo = tipo; ex.local = local; ex.estado = estado; ex.quando = quando; atual++; }
