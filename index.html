@@ -16,7 +16,7 @@
 </head>
 <body>
 <!--
-  Inventário de equipamento do gabinete digital. Versão 26 (26/10/2026).
+  Inventário de equipamento do gabinete digital. Versão 27 (27/10/2026).
   Bibliotecas incluídas neste ficheiro:
     - zxing-wasm versão 3.1.5 (zxing-cpp em WebAssembly), licença MIT/Apache 2.0 (leitor principal de códigos de barras)
     - ZXing (@zxing/library) versão 0.21.3, licença Apache 2.0 (leitor de reserva)
@@ -218,6 +218,11 @@
   body.modo-saida .resumo { display:none; }
   body.modo-saida #video-wrap { outline:5px solid #D97706; outline-offset:-5px; }
   body.modo-entrada #video-wrap { outline:5px solid #059669; outline-offset:-5px; }
+  /* ===== Versão 27 ===== */
+  .contagens button.cont-bt { font:inherit; color:inherit; background:#FEF3C7; border:2px solid #D97706; border-radius:16px; padding:8px 16px; min-height:44px; line-height:1.3; cursor:pointer; }
+  .contagens button.cont-bt.ativo { background:#B45309; color:#fff; }
+  .ha-dias { display:block; font-size:14px; color:#78350F; font-weight:bold; }
+  #apagar-vista { background:#fff; border-radius:16px; padding:8px 12px; box-shadow:0 2px 8px rgba(58,30,140,.08); align-items:center; }
 </style>
 <main>
 <header class="topo sem-impressao">
@@ -406,6 +411,7 @@
     <select id="filtro-local"><option value="">Todos os locais</option></select>
     <select id="filtro-estado"><option value="">Todos os estados</option></select>
   </div>
+  <div id="apagar-vista" class="linha-form sem-impressao" hidden></div>
   <div class="linha-form">
     <button class="principal" id="btn-exportar">Exportar para Excel</button>
     <button id="btn-imprimir">Imprimir</button>
@@ -426,7 +432,7 @@
   </details>
 </section>
 
-<p class="nota sem-impressao" id="versao">Versão 26 (26/10/2026)</p>
+<p class="nota sem-impressao" id="versao">Versão 27 (27/10/2026)</p>
 </main>
 <div id="flash" aria-hidden="true"></div>
 <div id="folha-qr"></div>
@@ -5111,7 +5117,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     dados.itens.forEach(function (it) { cont[it.tipo] = (cont[it.tipo] || 0) + 1; if (it.estado === ENTREGUE) cont.ent++; });
     $('contagens').innerHTML = '<div>Total: <b>' + cont.total + '</b></div><div>PC: <b>' + cont.PC +
       '</b></div><div>Hotspots: <b>' + cont.Hotspot + '</b></div><div>Na escola: <b>' + (cont.total - cont.ent) +
-      '</b></div><div>Entregues: <b>' + cont.ent + '</b></div>';
+      '</b></div>' + (cont.ent ? '<button type="button" class="cont-bt' + ($('filtro-estado').value === ENTREGUE ? ' ativo' : '') + '" id="ver-entregues">Entregues: <b>' + cont.ent + '</b><br>' +
+        ($('filtro-estado').value === ENTREGUE ? 'Ver todos' : 'Ver quais') + '</button>' : '<div>Entregues: <b>0</b></div>');
 
     var lista = itensFiltrados();
     if (!dados.itens.length) { $('tabela-lista').innerHTML = '<p>Ainda não há equipamento lido.</p>'; return; }
@@ -5126,20 +5133,66 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var html = '';
     ordem.forEach(function (l) {
       var g = grupos[l].slice().sort(function (a, b) {
+        if (l === FORA) return a.quando < b.quando ? -1 : 1;
         return a.tipo === b.tipo ? (a.serie < b.serie ? -1 : 1) : (a.tipo < b.tipo ? -1 : 1);
       });
       html += '<div class="grupo-local"><h3>' + esc(l) + ' (' + g.length + ')<span class="nota so-impressao" style="font-weight:normal"> · impresso a ' + hoje + '</span></h3>' +
         '<div class="tabela-wrap"><table><thead><tr><th>N.º de série</th><th>Tipo</th><th>Estado</th><th>Data</th><th>Hora</th><th class="sem-impressao"></th></tr></thead><tbody>';
       g.forEach(function (it) {
         html += '<tr><td class="serie">' + esc(it.serie) + '</td><td>' + esc(it.tipo) + '</td><td>' + esc(it.estado) +
-          '</td><td>' + dataTxt(it.quando) + '</td><td>' + horaTxt(it.quando) + '</td>' +
+          '</td><td>' + dataTxt(it.quando) + (it.estado === ENTREGUE ? '<span class="ha-dias">' + haDias(it.quando) + '</span>' : '') + '</td><td>' + horaTxt(it.quando) + '</td>' +
           '<td class="sem-impressao"><select data-ac="estado" data-s="' + esc(it.serie) + '" aria-label="Estado de ' + esc(it.serie) + '" style="font-size:16px; min-height:44px">' + opcoesEstado(it.estado) + '</select> ' +
           '<button class="pequeno perigo" data-ac="apagar" data-s="' + esc(it.serie) + '">Apagar</button></td></tr>';
       });
       html += '</tbody></table></div></div>';
     });
     $('tabela-lista').innerHTML = html;
+    desenharApagarVista(lista);
   }
+  function haDias(q) {
+    var d = Math.floor((Date.now() - new Date(q).getTime()) / 864e5);
+    return d <= 0 ? 'saiu hoje' : d === 1 ? 'há 1 dia' : 'há ' + d + ' dias';
+  }
+  function descFiltro() {
+    var p = [], q = $('pesquisa').value.trim(), fl = $('filtro-local').value, fe = $('filtro-estado').value;
+    if (fl) p.push(fl);
+    if (fe) p.push(fe);
+    if (q) p.push('com "' + q + '"');
+    return p.join(' · ');
+  }
+  function desenharApagarVista(lista) {
+    var c = $('apagar-vista');
+    if (!descFiltro() || !lista || !lista.length) { c.hidden = true; c.innerHTML = ''; return; }
+    c.hidden = false;
+    c.innerHTML = '<button class="pequeno perigo" id="btn-apagar-vista">Apagar os ' + lista.length + ' que estão à vista</button>' +
+      '<span class="nota">' + esc(descFiltro()) + '</span>';
+  }
+  $('apagar-vista').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button') : null;
+    if (!b) return;
+    var c = $('apagar-vista'), lista = itensFiltrados();
+    if (b.id === 'btn-apagar-vista') {
+      c.innerHTML = '<span><b>Apagar ' + (lista.length === 1 ? '1 equipamento' : lista.length + ' equipamentos') + '?</b> ' + esc(descFiltro()) + '</span>' +
+        '<button class="pequeno perigo" id="btn-apagar-vista-sim">Sim, apagar</button><button class="pequeno" id="btn-apagar-vista-nao">Não</button>';
+      return;
+    }
+    if (b.id === 'btn-apagar-vista-nao') { desenharLista(); return; }
+    if (b.id !== 'btn-apagar-vista-sim') return;
+    var fora = {};
+    lista.forEach(function (it) { fora[it.serie] = 1; });
+    dados.itens = dados.itens.filter(function (x) { return !fora[x.serie]; });
+    lidosSessao = lidosSessao.filter(function (x) { return !fora[x.serie]; });
+    guardar(); desenharLista(); atualizarContagens();
+    avisarDesfazer('✓ Apagados: ' + lista.length + ' equipamentos.', function () { lista.forEach(function (it) { if (!procurar(it.serie)) dados.itens.push(it); }); });
+  });
+  $('contagens').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('#ver-entregues') : null;
+    if (!b) return;
+    var fe = $('filtro-estado');
+    fe.value = fe.value === ENTREGUE ? '' : ENTREGUE;
+    if (fe.value === ENTREGUE) $('filtro-local').value = '';
+    desenharLista();
+  });
 
   $('tabela-lista').addEventListener('click', function (e) {
     var b = e.target.closest ? e.target.closest('button') : null;
